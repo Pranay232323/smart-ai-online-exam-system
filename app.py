@@ -41,6 +41,28 @@ def register_user():
     db.commit()
 
     return redirect("/")
+#------login------
+@app.route("/login-user", methods=["POST"])
+def login_user():
+
+    email = request.form["email"]
+    password = request.form["password"]
+
+    sql = "SELECT * FROM users WHERE email=%s AND password=%s"
+    values = (email, password)
+
+    cursor.execute(sql, values)
+    user = cursor.fetchone()
+
+    if user:
+        return redirect("/dashboard")
+    else:
+        return "Invalid email or password"
+    
+#------Dashboard------
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
