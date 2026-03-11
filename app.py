@@ -129,7 +129,32 @@ def start_exam(exam_id):
     cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
     questions = cursor.fetchall()
 
+    print(questions)   # DEBUG LINE
+
     return render_template("exam.html", questions=questions)
+
+#------submit exam------
+@app.route("/submit-exam", methods=["POST"])
+def submit_exam():
+
+    cursor.execute("SELECT * FROM questions")
+    questions = cursor.fetchall()
+
+    score = 0
+
+    for q in questions:
+
+        qid = q[0]
+        correct_answer = q[7]
+
+        student_answer = request.form.get(f"q{qid}")
+
+        if student_answer == correct_answer:
+            score += 1
+
+    total_questions = len(questions)
+
+    return f"Your Score: {score}/{total_questions}"
 
 
 if __name__ == "__main__":
