@@ -32,6 +32,20 @@ font-weight:bold;
 color:blue;
 }
 
+button{
+padding:8px 16px;
+margin:10px;
+border:none;
+background:#4CAF50;
+color:white;
+border-radius:5px;
+cursor:pointer;
+}
+
+button:hover{
+background:#45a049;
+}
+
 </style>
 
 </head>
@@ -48,6 +62,10 @@ color:blue;
 <button onclick="nextQuestion()">Next</button>
 
 <div class="palette" id="palette"></div>
+
+<br>
+
+<button onclick="submitExam()">Submit Exam</button>
 
 <form id="examForm" action="/submit-exam" method="POST"></form>
 
@@ -81,9 +99,7 @@ let radios = document.getElementsByName("option");
 for(let r of radios){
 
 if(r.value == answers[qid]){
-
 r.checked = true;
-
 }
 
 }
@@ -162,6 +178,26 @@ loadQuestion();
 
 }
 
+function submitExam(){
+
+let form = document.getElementById("examForm");
+
+for(let qid in answers){
+
+let input = document.createElement("input");
+
+input.type = "hidden";
+input.name = "q" + qid;
+input.value = answers[qid];
+
+form.appendChild(input);
+
+}
+
+form.submit();
+
+}
+
 loadQuestion();
 buildPalette();
 
@@ -187,11 +223,37 @@ clearInterval(timer);
 
 alert("Time is up!");
 
-document.getElementById("examForm").submit();
+submitExam();
 
 }
 
 },1000);
+
+</script>
+
+<script>
+
+let violations = 0;
+
+document.addEventListener("visibilitychange", function(){
+
+if(document.hidden){
+
+violations++;
+
+alert("Warning " + violations + "/3 : Tab switching detected");
+
+if(violations >= 3){
+
+alert("Too many violations. Exam will be submitted.");
+
+submitExam();
+
+}
+
+}
+
+});
 
 </script>
 
