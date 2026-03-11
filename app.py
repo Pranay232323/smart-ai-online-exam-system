@@ -166,6 +166,26 @@ def submit_exam():
 
     return f"Your Score: {score}/{total_questions}"
 
+@app.route("/start-exam/<int:exam_id>")
+def start_exam(exam_id):
+
+    student_id = 2
+
+    cursor.execute(
+        "SELECT * FROM results WHERE student_id=%s AND exam_id=%s",
+        (student_id, exam_id)
+    )
+
+    attempt = cursor.fetchone()
+
+    if attempt:
+        return "You have already attempted this exam."
+
+    cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
+    questions = cursor.fetchall()
+
+    return render_template("exam.html", questions=questions)
+
 if __name__ == "__main__":
     app.run(debug=True)
 
