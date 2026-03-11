@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Exam</title>
+</head>
+
+<body>
+
+<h2>Exam Questions</h2>
+
+<form action="/submit-exam" method="POST">
+
+{% for q in questions %}
+
+<p><b>{{ q[2] }}</b></p>
+
+<input type="radio" name="q{{ q[0] }}" value="A"> {{ q[3] }} <br>
+<input type="radio" name="q{{ q[0] }}" value="B"> {{ q[4] }} <br>
+<input type="radio" name="q{{ q[0] }}" value="C"> {{ q[5] }} <br>
+<input type="radio" name="q{{ q[0] }}" value="D"> {{ q[6] }} <br>
+
+<hr>
+
+{% endfor %}
+
+<button type="submit">Submit Exam</button>
+
+</form>
+
+</body>
+</html>
