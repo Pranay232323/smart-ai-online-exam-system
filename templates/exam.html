@@ -89,13 +89,17 @@ answers[qid] = option;
 
 function buildPalette(){
 
-let paletteHTML="";
+let paletteHTML = `<span style="cursor:pointer;margin-right:10px;" onclick="prevQuestion()">&#60;</span>`;
 
 for(let i=0;i<questions.length;i++){
 
-paletteHTML += `<button onclick="jumpQuestion(${i})">${i+1}</button>`;
+paletteHTML += `<span 
+style="margin:5px;cursor:pointer;font-weight:bold;"
+onclick="jumpQuestion(${i})">${i+1}</span>`;
 
 }
+
+paletteHTML += `<span style="cursor:pointer;margin-left:10px;" onclick="nextQuestion()">&#62;</span>`;
 
 document.getElementById("palette").innerHTML = paletteHTML;
 
