@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Create Exam</title>
+</head>
+
+<body>
+
+<h2>Create Exam</h2>
+
+<form action="/save-exam" method="POST">
+
+Exam Title:<br>
+<input type="text" name="title" required><br><br>
+
+Description:<br>
+<textarea name="description"></textarea><br><br>
+
+Duration (minutes):<br>
+<input type="number" name="duration" required><br><br>
+
+<button type="submit">Create Exam</button>
+
+</form>
+
+</body>
+</html>
