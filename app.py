@@ -62,7 +62,11 @@ def login_user():
 #------Dashboard------
 @app.route("/dashboard")
 def dashboard():
-    return render_template("dashboard.html")
+
+    cursor.execute("SELECT * FROM exams")
+    exams = cursor.fetchall()
+
+    return render_template("dashboard.html", exams=exams)
 
 #------admin dashboard------
 @app.route("/admin-dashboard")
@@ -90,11 +94,12 @@ def save_exam():
 
     return "Exam Created Successfully"
 
+#------add question------
 @app.route("/add-question")
 def add_question():
     return render_template("add_questions.html")
 
-
+#------save question------
 @app.route("/save-question", methods=["POST"])
 def save_question():
     exam_id = request.form["exam_id"]
@@ -116,6 +121,15 @@ def save_question():
     db.commit()
 
     return "Question Added Successfully"
+
+#------Start exam------
+@app.route("/start-exam/<int:exam_id>")
+def start_exam(exam_id):
+
+    cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
+    questions = cursor.fetchall()
+
+    return render_template("exam.html", questions=questions)
 
 
 if __name__ == "__main__":

@@ -1,14 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Dashboard</title>
+<title>Student Dashboard</title>
 </head>
 
 <body>
 
-<h1>Welcome to the Student Dashboard</h1>
+<h1>Student Dashboard</h1>
 
-<p>Login successful!</p>
+<h3>Available Exams</h3>
+
+<ul>
+{% for exam in exams %}
+    <li>
+        {{ exam[1] }} 
+        <a href="/start-exam/{{ exam[0] }}">Start Exam</a>
+    </li>
+{% endfor %}
+</ul>
 
 <br>
 
