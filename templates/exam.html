@@ -2,62 +2,144 @@
 <html>
 <head>
 <title>Exam</title>
+
+<style>
+
+body{
+font-family: Arial;
+}
+
+#question-box{
+margin-bottom:20px;
+}
+
+.palette{
+margin-top:20px;
+}
+
+.palette button{
+width:40px;
+height:40px;
+margin:3px;
+}
+
+</style>
+
 </head>
 
 <body>
 
-<h2>Exam Questions</h2>
+<h2>Online Exam</h2>
 
 <h3>Time Remaining: <span id="timer"></span></h3>
 
-<form action="/submit-exam" method="POST">
+<div id="question-box"></div>
 
-{% if questions %}
+<button onclick="prevQuestion()">Previous</button>
+<button onclick="nextQuestion()">Next</button>
 
-{% for q in questions %}
+<div class="palette" id="palette"></div>
 
-<p><b>{{ q[2] }}</b></p>
-
-<input type="radio" name="q{{ q[0] }}" value="A"> {{ q[3] }} <br>
-<input type="radio" name="q{{ q[0] }}" value="B"> {{ q[4] }} <br>
-<input type="radio" name="q{{ q[0] }}" value="C"> {{ q[5] }} <br>
-<input type="radio" name="q{{ q[0] }}" value="D"> {{ q[6] }} <br>
-
-<hr>
-
-{% endfor %}
-
-{% else %}
-
-<p>No questions available for this exam.</p>
-
-{% endif %}
-
-<button type="submit">Submit Exam</button>
-
-</form>
-
+<form id="examForm" action="/submit-exam" method="POST"></form>
 
 <script>
-let time = 60 * 30; // 30 minutes
+
+let questions = {{ questions | tojson }};
+let currentQuestion = 0;
+let answers = {};
+
+function loadQuestion(){
+
+let q = questions[currentQuestion];
+
+let html = "<h3>Question " + (currentQuestion+1) + " / " + questions.length + "</h3>";
+
+html += "<p>"+q[2]+"</p>";
+
+html += `<input type="radio" name="option" value="A" onclick="saveAnswer('A')"> ${q[3]} <br>`;
+html += `<input type="radio" name="option" value="B" onclick="saveAnswer('B')"> ${q[4]} <br>`;
+html += `<input type="radio" name="option" value="C" onclick="saveAnswer('C')"> ${q[5]} <br>`;
+html += `<input type="radio" name="option" value="D" onclick="saveAnswer('D')"> ${q[6]} <br>`;
+
+document.getElementById("question-box").innerHTML = html;
+
+}
+
+function nextQuestion(){
+if(currentQuestion < questions.length-1){
+currentQuestion++;
+loadQuestion();
+}
+}
+
+function prevQuestion(){
+if(currentQuestion > 0){
+currentQuestion--;
+loadQuestion();
+}
+}
+
+function saveAnswer(option){
+
+let qid = questions[currentQuestion][0];
+
+answers[qid] = option;
+
+}
+
+function buildPalette(){
+
+let paletteHTML="";
+
+for(let i=0;i<questions.length;i++){
+
+paletteHTML += `<button onclick="jumpQuestion(${i})">${i+1}</button>`;
+
+}
+
+document.getElementById("palette").innerHTML = paletteHTML;
+
+}
+
+function jumpQuestion(index){
+
+currentQuestion = index;
+
+loadQuestion();
+
+}
+
+loadQuestion();
+buildPalette();
+
+</script>
+
+<script>
+
+let time = 60*30;
 
 let timer = setInterval(function(){
 
-    let minutes = Math.floor(time / 60);
-    let seconds = time % 60;
+let minutes = Math.floor(time/60);
+let seconds = time%60;
 
-    document.getElementById("timer").innerHTML =
-        minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+document.getElementById("timer").innerHTML =
+minutes + ":" + (seconds<10?"0":"") + seconds;
 
-    time--;
+time--;
 
-    if(time < 0){
-        clearInterval(timer);
-        alert("Time is up! Exam will be submitted.");
-        document.querySelector("form").submit();
-    }
+if(time<0){
+
+clearInterval(timer);
+
+alert("Time is up!");
+
+document.getElementById("examForm").submit();
+
+}
 
 },1000);
+
 </script>
 
 </body>
