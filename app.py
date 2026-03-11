@@ -90,5 +90,34 @@ def save_exam():
 
     return "Exam Created Successfully"
 
+@app.route("/add-question")
+def add_question():
+    return render_template("add_questions.html")
+
+
+@app.route("/save-question", methods=["POST"])
+def save_question():
+    exam_id = request.form["exam_id"]
+    question = request.form["question"]
+    option_a = request.form["option_a"]
+    option_b = request.form["option_b"]
+    option_c = request.form["option_c"]
+    option_d = request.form["option_d"]
+    correct_answer = request.form["correct_answer"]
+
+    sql = """
+    INSERT INTO questions (exam_id, question, option_a, option_b, option_c, option_d, correct_answer)
+    VALUES (%s,%s,%s,%s,%s,%s,%s)
+    """
+
+    values = (exam_id, question, option_a, option_b, option_c, option_d, correct_answer)
+
+    cursor.execute(sql, values)
+    db.commit()
+
+    return "Question Added Successfully"
+
+
 if __name__ == "__main__":
     app.run(debug=True)
+
