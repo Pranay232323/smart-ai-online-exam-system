@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Question</title>
+</head>
+
+<body>
+
+<h2>Add Question</h2>
+
+<form action="/save-question" method="POST">
+
+<label>Exam ID:</label><br>
+<input type="number" name="exam_id" required><br><br>
+
+<label>Question:</label><br>
+<textarea name="question" required></textarea><br><br>
+
+<label>Option A:</label><br>
+<input type="text" name="option_a" required><br><br>
+
+<label>Option B:</label><br>
+<input type="text" name="option_b" required><br><br>
+
+<label>Option C:</label><br>
+<input type="text" name="option_c" required><br><br>
+
+<label>Option D:</label><br>
+<input type="text" name="option_d" required><br><br>
+
+<label>Correct Answer (A/B/C/D):</label><br>
+<input type="text" name="correct_answer" required><br><br>
+
+<button type="submit">Add Question</button>
+
+</form>
+
+</body>
+</html>
