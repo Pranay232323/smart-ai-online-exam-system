@@ -137,8 +137,8 @@ def start_exam(exam_id):
 @app.route("/submit-exam", methods=["POST"])
 def submit_exam():
 
-    student_id = 2   # temporary student ID (later we will use session login)
-    exam_id = 1      # exam being attempted
+    student_id = 2
+    exam_id = 1
 
     cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
     questions = cursor.fetchall()
@@ -156,7 +156,6 @@ def submit_exam():
 
     total_questions = len(questions)
 
-    # Save result in database
     sql = """
     INSERT INTO results (student_id, exam_id, score, total_questions)
     VALUES (%s, %s, %s, %s)
@@ -166,7 +165,6 @@ def submit_exam():
     db.commit()
 
     return f"Your Score: {score}/{total_questions}"
-
 
 if __name__ == "__main__":
     app.run(debug=True)
