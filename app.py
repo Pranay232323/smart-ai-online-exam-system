@@ -146,6 +146,7 @@ def submit_exam():
     score = 0
 
     for q in questions:
+
         qid = q[0]
         correct_answer = q[7]
 
@@ -156,6 +157,8 @@ def submit_exam():
 
     total_questions = len(questions)
 
+    percentage = (score / total_questions) * 100
+
     sql = """
     INSERT INTO results (student_id, exam_id, score, total_questions)
     VALUES (%s, %s, %s, %s)
@@ -164,7 +167,12 @@ def submit_exam():
     cursor.execute(sql, (student_id, exam_id, score, total_questions))
     db.commit()
 
-    return f"Your Score: {score}/{total_questions}"
+    return render_template(
+        "result.html",
+        score=score,
+        total=total_questions,
+        percentage=percentage
+    )
 
 
 
