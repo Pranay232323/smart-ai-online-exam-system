@@ -64,5 +64,31 @@ def login_user():
 def dashboard():
     return render_template("dashboard.html")
 
+#------admin dashboard------
+@app.route("/admin-dashboard")
+def admin_dashboard():
+    return render_template("admin_dashboard.html")
+
+#------create exam------
+@app.route("/create-exam")
+def create_exam():
+    return render_template("create_exam.html")
+
+#------save exam------
+@app.route("/save-exam", methods=["POST"])
+def save_exam():
+
+    title = request.form["title"]
+    description = request.form["description"]
+    duration = request.form["duration"]
+
+    sql = "INSERT INTO exams (title, description, duration) VALUES (%s,%s,%s)"
+    values = (title, description, duration)
+
+    cursor.execute(sql, values)
+    db.commit()
+
+    return "Exam Created Successfully"
+
 if __name__ == "__main__":
     app.run(debug=True)
