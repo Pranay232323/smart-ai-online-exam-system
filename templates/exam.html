@@ -10,6 +10,8 @@
 
 <form action="/submit-exam" method="POST">
 
+{% if questions %}
+
 {% for q in questions %}
 
 <p><b>{{ q[2] }}</b></p>
@@ -22,6 +24,12 @@
 <hr>
 
 {% endfor %}
+
+{% else %}
+
+<p>No questions available for this exam.</p>
+
+{% endif %}
 
 <button type="submit">Submit Exam</button>
 
