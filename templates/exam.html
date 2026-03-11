@@ -8,6 +8,8 @@
 
 <h2>Exam Questions</h2>
 
+<h3>Time Remaining: <span id="timer"></span></h3>
+
 <form action="/submit-exam" method="POST">
 
 {% if questions %}
@@ -34,6 +36,29 @@
 <button type="submit">Submit Exam</button>
 
 </form>
+
+
+<script>
+let time = 60 * 30; // 30 minutes
+
+let timer = setInterval(function(){
+
+    let minutes = Math.floor(time / 60);
+    let seconds = time % 60;
+
+    document.getElementById("timer").innerHTML =
+        minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+
+    time--;
+
+    if(time < 0){
+        clearInterval(timer);
+        alert("Time is up! Exam will be submitted.");
+        document.querySelector("form").submit();
+    }
+
+},1000);
+</script>
 
 </body>
 </html>
