@@ -71,7 +71,23 @@ html += `<input type="radio" name="option" value="C" onclick="saveAnswer('C')"> 
 html += `<input type="radio" name="option" value="D" onclick="saveAnswer('D')"> ${q[6]} <br>`;
 
 document.getElementById("question-box").innerHTML = html;
+let qid = questions[currentQuestion][0];
 
+if(answers[qid]){
+
+let radios = document.getElementsByName("option");
+
+for(let r of radios){
+
+if(r.value == answers[qid]){
+
+r.checked = true;
+
+}
+
+}
+
+}
 }
 
 function nextQuestion(){
@@ -94,6 +110,8 @@ let qid = questions[currentQuestion][0];
 
 answers[qid] = option;
 
+updatePalette();
+
 }
 
 function buildPalette(){
@@ -105,6 +123,24 @@ for(let i=0;i<questions.length;i++){
 paletteHTML += `<span 
 style="margin:5px;cursor:pointer;font-weight:bold;"
 onclick="jumpQuestion(${i})">${i+1}</span>`;
+
+}
+
+function updatePalette(){
+
+let spans = document.querySelectorAll("#palette span");
+
+for(let i=0;i<questions.length;i++){
+
+let qid = questions[i][0];
+
+if(answers[qid]){
+
+spans[i+1].style.color = "green";
+
+}
+
+}
 
 }
 
