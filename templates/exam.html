@@ -2,259 +2,315 @@
 <html>
 
 <head>
-    <title>Exam</title>
+<title>Exam</title>
 
-    <style>
-        body {
-            font-family: Arial;
-        }
+<style>
 
-        #question-box {
-            margin-bottom: 20px;
-        }
+body{
+font-family: Arial;
+}
 
-        .palette {
-            margin-top: 20px;
-        }
+#question-box{
+margin-bottom:20px;
+}
 
-        #palette {
-            margin-top: 20px;
-            font-size: 18px;
-        }
+.palette{
+margin-top:20px;
+}
 
-        #palette span {
-            margin: 5px;
-            cursor: pointer;
-            font-weight: bold;
-        }
+#palette{
+margin-top:20px;
+font-size:18px;
+}
 
-        #palette span:hover {
-            color: blue;
-        }
+#palette span{
+margin:5px;
+cursor:pointer;
+font-weight:bold;
+}
 
-        button {
-            padding: 8px 16px;
-            margin: 10px;
-            border: none;
-            background: #4CAF50;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+#palette span:hover{
+color:blue;
+}
 
-        button:hover {
-            background: #45a049;
-        }
-    </style>
+button{
+padding:8px 16px;
+margin:10px;
+border:none;
+background:#4CAF50;
+color:white;
+border-radius:5px;
+cursor:pointer;
+}
+
+button:hover{
+background:#45a049;
+}
+
+#warningBox{
+position:fixed;
+top:20px;
+right:20px;
+background:#ff4444;
+color:white;
+padding:15px;
+border-radius:8px;
+display:none;
+font-weight:bold;
+z-index:1000;
+}
+
+</style>
 
 </head>
 
 <body>
 
-    <h2>Online Exam</h2>
+<h2>Online Exam</h2>
 
-    <h3>Time Remaining: <span id="timer"></span></h3>
+<h3>Time Remaining: <span id="timer"></span></h3>
 
-    <div id="question-box"></div>
+<div id="question-box"></div>
 
-    <button onclick="prevQuestion()">Previous</button>
-    <button onclick="nextQuestion()">Next</button>
+<button onclick="prevQuestion()">Previous</button>
+<button onclick="nextQuestion()">Next</button>
 
-    <div class="palette" id="palette"></div>
+<div class="palette" id="palette"></div>
 
-    <br>
+<br>
 
-    <button onclick="submitExam()">Submit Exam</button>
+<button onclick="submitExam()">Submit Exam</button>
 
-    <form id="examForm" action="/submit-exam" method="POST"></form>
+<form id="examForm" action="/submit-exam" method="POST"></form>
 
-    <script>
-        let examSubmitting = false;
-        let questions = {{ questions | tojson }};
-        let currentQuestion = 0;
-        let answers = {};
+<div id="warningBox"></div>
 
-        function loadQuestion() {
+<script>
 
-            let q = questions[currentQuestion];
+let examSubmitting=false;
 
-            let html = "<h3>Question " + (currentQuestion + 1) + " / " + questions.length + "</h3>";
+let questions={{questions | tojson}};
+let currentQuestion=0;
+let answers={};
 
-            html += "<p>" + q[2] + "</p>";
+function loadQuestion(){
 
-            html += `<input type="radio" name="option" value="A" onclick="saveAnswer('A')"> ${q[3]} <br>`;
-            html += `<input type="radio" name="option" value="B" onclick="saveAnswer('B')"> ${q[4]} <br>`;
-            html += `<input type="radio" name="option" value="C" onclick="saveAnswer('C')"> ${q[5]} <br>`;
-            html += `<input type="radio" name="option" value="D" onclick="saveAnswer('D')"> ${q[6]} <br>`;
+let q=questions[currentQuestion];
 
-            document.getElementById("question-box").innerHTML = html;
+let html="<h3>Question "+(currentQuestion+1)+" / "+questions.length+"</h3>";
 
-            let qid = questions[currentQuestion][0];
+html+="<p>"+q[2]+"</p>";
 
-            if (answers[qid]) {
+html+=`<input type="radio" name="option" value="A" onclick="saveAnswer('A')"> ${q[3]} <br>`;
+html+=`<input type="radio" name="option" value="B" onclick="saveAnswer('B')"> ${q[4]} <br>`;
+html+=`<input type="radio" name="option" value="C" onclick="saveAnswer('C')"> ${q[5]} <br>`;
+html+=`<input type="radio" name="option" value="D" onclick="saveAnswer('D')"> ${q[6]} <br>`;
 
-                let radios = document.getElementsByName("option");
+document.getElementById("question-box").innerHTML=html;
 
-                for (let r of radios) {
+let qid=questions[currentQuestion][0];
 
-                    if (r.value == answers[qid]) {
-                        r.checked = true;
-                    }
+if(answers[qid]){
 
-                }
+let radios=document.getElementsByName("option");
 
-            }
+for(let r of radios){
 
-        }
+if(r.value==answers[qid]){
+r.checked=true;
+}
 
-        function nextQuestion() {
-            if (currentQuestion < questions.length - 1) {
-                currentQuestion++;
-                loadQuestion();
-            }
-        }
+}
 
-        function prevQuestion() {
-            if (currentQuestion > 0) {
-                currentQuestion--;
-                loadQuestion();
-            }
-        }
+}
 
-        function saveAnswer(option) {
+}
 
-            let qid = questions[currentQuestion][0];
+function nextQuestion(){
+if(currentQuestion<questions.length-1){
+currentQuestion++;
+loadQuestion();
+}
+}
 
-            answers[qid] = option;
+function prevQuestion(){
+if(currentQuestion>0){
+currentQuestion--;
+loadQuestion();
+}
+}
 
-            updatePalette();
+function saveAnswer(option){
 
-        }
+let qid=questions[currentQuestion][0];
 
-        function buildPalette() {
+answers[qid]=option;
 
-            let paletteHTML = `<span onclick="prevQuestion()">&#60;</span>`;
+updatePalette();
 
-            for (let i = 0; i < questions.length; i++) {
+}
 
-                paletteHTML += `<span onclick="jumpQuestion(${i})">${i + 1}</span>`;
+function buildPalette(){
 
-            }
+let paletteHTML=`<span onclick="prevQuestion()">&#60;</span>`;
 
-            paletteHTML += `<span onclick="nextQuestion()">&#62;</span>`;
+for(let i=0;i<questions.length;i++){
 
-            document.getElementById("palette").innerHTML = paletteHTML;
+paletteHTML+=`<span onclick="jumpQuestion(${i})">${i+1}</span>`;
 
-        }
+}
 
-        function updatePalette() {
+paletteHTML+=`<span onclick="nextQuestion()">&#62;</span>`;
 
-            let spans = document.querySelectorAll("#palette span");
+document.getElementById("palette").innerHTML=paletteHTML;
 
-            for (let i = 0; i < questions.length; i++) {
+}
 
-                let qid = questions[i][0];
+function updatePalette(){
 
-                if (answers[qid]) {
+let spans=document.querySelectorAll("#palette span");
 
-                    spans[i + 1].style.color = "green";
+for(let i=0;i<questions.length;i++){
 
-                } else {
+let qid=questions[i][0];
 
-                    spans[i + 1].style.color = "black";
+if(answers[qid]){
 
-                }
+spans[i+1].style.color="green";
 
-            }
+}else{
 
-        }
+spans[i+1].style.color="black";
 
-        function jumpQuestion(index) {
+}
 
-            currentQuestion = index;
+}
 
-            loadQuestion();
+}
 
-        }
+function jumpQuestion(index){
 
-        function submitExam() {
-            if(!confirm("Are you sure you want to submit the exam?")) return;
-            examSubmitting = true;   // disable tab detection
+currentQuestion=index;
 
-            let form = document.getElementById("examForm");
+loadQuestion();
 
-            for (let qid in answers) {
+}
 
-                let input = document.createElement("input");
+function submitExam(auto=false){
 
-                input.type = "hidden";
-                input.name = "q" + qid;
-                input.value = answers[qid];
+if(!auto){
 
-                form.appendChild(input);
+if(!confirm("Are you sure you want to submit the exam?")) return;
 
-            }
+}
 
-            form.submit();
+examSubmitting=true;
 
-        }
+let form=document.getElementById("examForm");
 
-        loadQuestion();
-        buildPalette();
+for(let qid in answers){
 
-    
+let input=document.createElement("input");
 
-        let time = 60 * 30;
+input.type="hidden";
+input.name="q"+qid;
+input.value=answers[qid];
 
-        let timer = setInterval(function () {
+form.appendChild(input);
 
-            let minutes = Math.floor(time / 60);
-            let seconds = time % 60;
+}
 
-            document.getElementById("timer").innerHTML =
-                minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+form.submit();
 
-            time--;
+}
 
-            if (time < 0) {
+loadQuestion();
+buildPalette();
 
-                clearInterval(timer);
+let time=60*30;
 
-                alert("Time is up!");
+let timer=setInterval(function(){
 
-                submitExam();
+let minutes=Math.floor(time/60);
+let seconds=time%60;
 
-            }
+document.getElementById("timer").innerHTML=
+minutes+":"+(seconds<10?"0":"")+seconds;
 
-        }, 1000);
+time--;
 
-    
+if(time<0){
 
-        let violations = 0;
+clearInterval(timer);
 
-        document.addEventListener("visibilitychange", function () {
-             if (examSubmitting) return;   // ignore during submission
+showWarning("Time is up! Submitting exam...");
 
+submitExam(true);
 
-            if (document.hidden) {
+}
 
-                violations++;
+},1000);
 
-                alert("Warning " + violations + "/1 : Tab switching detected");
 
-                if (violations >= 1) {
+function showWarning(text){
 
-                    alert("Too many violations. Exam will be submitted.");
+let box=document.getElementById("warningBox");
 
-                    submitExam();
+box.innerHTML=text;
 
-                }
+box.style.display="block";
 
-            }
+setTimeout(()=>{
 
-        });
+box.style.display="none";
 
-    </script>
+},3000);
+
+}
+
+
+let violations=0;
+
+function handleViolation(){
+
+if(examSubmitting) return;
+
+violations++;
+
+showWarning("Warning "+violations+"/2 : Tab switching detected");
+
+if(violations>=2){
+
+showWarning("Too many violations. Submitting exam...");
+
+setTimeout(()=>{
+submitExam(true);
+},2000);
+
+}
+
+}
+
+
+document.addEventListener("visibilitychange",function(){
+
+if(document.hidden){
+
+handleViolation();
+
+}
+
+});
+
+
+window.addEventListener("blur",function(){
+
+handleViolation();
+
+});
+
+
+</script>
 
 </body>
 
