@@ -5,23 +5,13 @@
 <title>Exam</title>
 
 <style>
+body{font-family:Arial;}
 
-body{
-font-family:Arial;
-}
+#question-box{margin-bottom:20px;}
 
-#question-box{
-margin-bottom:20px;
-}
+.palette{margin-top:20px;}
 
-.palette{
-margin-top:20px;
-}
-
-#palette{
-margin-top:20px;
-font-size:18px;
-}
+#palette{margin-top:20px;font-size:18px;}
 
 #palette span{
 margin:5px;
@@ -29,9 +19,7 @@ cursor:pointer;
 font-weight:bold;
 }
 
-#palette span:hover{
-color:blue;
-}
+#palette span:hover{color:blue;}
 
 button{
 padding:8px 16px;
@@ -43,9 +31,7 @@ border-radius:5px;
 cursor:pointer;
 }
 
-button:hover{
-background:#45a049;
-}
+button:hover{background:#45a049;}
 
 #warningBox{
 position:fixed;
@@ -60,6 +46,27 @@ font-weight:bold;
 z-index:1000;
 }
 
+/* Custom popup */
+
+#popupOverlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.5);
+display:none;
+justify-content:center;
+align-items:center;
+}
+
+#popupBox{
+background:white;
+padding:30px;
+border-radius:10px;
+text-align:center;
+}
+
 </style>
 
 </head>
@@ -70,7 +77,7 @@ z-index:1000;
 
 <h3>Time Remaining: <span id="timer"></span></h3>
 
-<h4 id="answerCount">Answered: 0 / 0</h4>
+<h4 id="answeredCount">Answered: 0 / 0</h4>
 
 <div id="question-box"></div>
 
@@ -81,25 +88,42 @@ z-index:1000;
 
 <br>
 
-<button onclick="submitExam()">Submit Exam</button>
+<button onclick="showSubmitPopup()">Submit Exam</button>
 
 <form id="examForm" action="/submit-exam" method="POST"></form>
 
 <div id="warningBox"></div>
 
+<!-- Custom Popup -->
+
+<div id="popupOverlay">
+<div id="popupBox">
+<h3>Submit Exam?</h3>
+<p>Are you sure you want to submit the exam?</p>
+<button onclick="submitExam()">Yes Submit</button>
+<button onclick="closePopup()">Cancel</button>
+</div>
+</div>
+
+<h4>Legend:</h4>
+<p>
+<span style="color:green;font-weight:bold;">● Answered</span><br>
+<span style="color:orange;font-weight:bold;">● Visited but unanswered</span><br>
+<span style="color:black;font-weight:bold;">● Not visited</span>
+</p>
+
 <script>
 
 let examSubmitting=false;
 
-let questions={{ questions | tojson }};
+let questions={{questions|tojson}};
 let currentQuestion=0;
 
 let answers={};
 let visited={};
 
-document.getElementById("answerCount").innerText=
+document.getElementById("answeredCount").innerHTML=
 "Answered: 0 / "+questions.length;
-
 
 function loadQuestion(){
 
@@ -127,7 +151,9 @@ let radios=document.getElementsByName("option");
 for(let r of radios){
 
 if(r.value==answers[qid]){
+
 r.checked=true;
+
 }
 
 }
@@ -138,35 +164,19 @@ updatePalette();
 
 }
 
-
-
 function nextQuestion(){
-
 if(currentQuestion<questions.length-1){
-
 currentQuestion++;
-
 loadQuestion();
-
 }
-
 }
-
-
 
 function prevQuestion(){
-
 if(currentQuestion>0){
-
 currentQuestion--;
-
 loadQuestion();
-
 }
-
 }
-
-
 
 function saveAnswer(option){
 
@@ -175,22 +185,18 @@ let qid=questions[currentQuestion][0];
 answers[qid]=option;
 
 updatePalette();
-updateAnswerCount();
+updateAnsweredCount();
 
 }
 
-
-
-function updateAnswerCount(){
+function updateAnsweredCount(){
 
 let count=Object.keys(answers).length;
 
-document.getElementById("answerCount").innerText=
+document.getElementById("answeredCount").innerHTML=
 "Answered: "+count+" / "+questions.length;
 
 }
-
-
 
 function buildPalette(){
 
@@ -198,7 +204,7 @@ let paletteHTML=`<span onclick="prevQuestion()">&#60;</span>`;
 
 for(let i=0;i<questions.length;i++){
 
-paletteHTML+=`<span onclick="jumpQuestion(${i})">${i+1}</span>`;
+paletteHTML+=`<span id="p${i}" onclick="jumpQuestion(${i})">${i+1}</span>`;
 
 }
 
@@ -208,37 +214,39 @@ document.getElementById("palette").innerHTML=paletteHTML;
 
 }
 
-
-
 function updatePalette(){
 
-let spans=document.querySelectorAll("#palette span");
-
 for(let i=0;i<questions.length;i++){
+
+let span=document.getElementById("p"+i);
 
 let qid=questions[i][0];
 
 if(answers[qid]){
 
-spans[i+1].style.color="green";
+span.style.color="green";
 
 }
 else if(visited[i]){
 
-spans[i+1].style.color="orange";
+span.style.color="orange";
 
 }
 else{
 
-spans[i+1].style.color="black";
+span.style.color="black";
+
+}
+
+if(i==currentQuestion){
+
+span.style.textDecoration="underline";
 
 }
 
 }
 
 }
-
-
 
 function jumpQuestion(index){
 
@@ -248,13 +256,19 @@ loadQuestion();
 
 }
 
+function showSubmitPopup(){
 
+document.getElementById("popupOverlay").style.display="flex";
 
-function submitExam(){
-
-if(!confirm("Are you sure you want to submit the exam?")){
-return;
 }
+
+function closePopup(){
+
+document.getElementById("popupOverlay").style.display="none";
+
+}
+
+function submitExam(auto=false){
 
 examSubmitting=true;
 
@@ -276,12 +290,8 @@ form.submit();
 
 }
 
-
-
 loadQuestion();
 buildPalette();
-
-
 
 let time=60*30;
 
@@ -301,13 +311,11 @@ clearInterval(timer);
 
 showWarning("Time is up! Submitting exam...");
 
-submitExam();
+submitExam(true);
 
 }
 
 },1000);
-
-
 
 function showWarning(text){
 
@@ -325,8 +333,6 @@ box.style.display="none";
 
 }
 
-
-
 let violations=0;
 
 function handleViolation(){
@@ -343,15 +349,13 @@ showWarning("Too many violations. Submitting exam...");
 
 setTimeout(()=>{
 
-submitExam();
+submitExam(true);
 
 },2000);
 
 }
 
 }
-
-
 
 document.addEventListener("visibilitychange",function(){
 
@@ -363,41 +367,33 @@ handleViolation();
 
 });
 
-
-
 window.addEventListener("blur",function(){
 
 handleViolation();
 
 });
 
-
-
-/* Disable reload */
+/* disable reload */
 
 document.addEventListener("keydown",function(e){
 
 if(e.key==="F5"){
+
 e.preventDefault();
+
+showWarning("Reload disabled during exam");
+
 }
 
 if(e.ctrlKey && e.key==="r"){
+
 e.preventDefault();
+
+showWarning("Reload disabled during exam");
+
 }
 
 });
-
-
-
-/* Disable back button */
-
-history.pushState(null,null,location.href);
-
-window.onpopstate=function(){
-
-history.go(1);
-
-};
 
 </script>
 
