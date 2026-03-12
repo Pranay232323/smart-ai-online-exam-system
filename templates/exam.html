@@ -69,7 +69,7 @@
     <form id="examForm" action="/submit-exam" method="POST"></form>
 
     <script>
-
+        let examSubmitting = false;
         let questions = {{ questions | tojson }};
         let currentQuestion = 0;
         let answers = {};
@@ -178,6 +178,8 @@
         }
 
         function submitExam() {
+            if(!confirm("Are you sure you want to submit the exam?")) return;
+            examSubmitting = true;   // disable tab detection
 
             let form = document.getElementById("examForm");
 
@@ -231,14 +233,16 @@
         let violations = 0;
 
         document.addEventListener("visibilitychange", function () {
+             if (examSubmitting) return;   // ignore during submission
+
 
             if (document.hidden) {
 
                 violations++;
 
-                alert("Warning " + violations + "/3 : Tab switching detected");
+                alert("Warning " + violations + "/1 : Tab switching detected");
 
-                if (violations >= 3) {
+                if (violations >= 1) {
 
                     alert("Too many violations. Exam will be submitted.");
 
