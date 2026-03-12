@@ -2,309 +2,404 @@
 <html>
 
 <head>
-    <title>Exam</title>
+<title>Exam</title>
 
-    <style>
-        body {
-            font-family: Arial;
-        }
+<style>
 
-        #question-box {
-            margin-bottom: 20px;
-        }
+body{
+font-family:Arial;
+}
 
-        .palette {
-            margin-top: 20px;
-        }
+#question-box{
+margin-bottom:20px;
+}
 
-        #palette {
-            margin-top: 20px;
-            font-size: 18px;
-        }
+.palette{
+margin-top:20px;
+}
 
-        #palette span {
-            margin: 5px;
-            cursor: pointer;
-            font-weight: bold;
-        }
+#palette{
+margin-top:20px;
+font-size:18px;
+}
 
-        #palette span:hover {
-            color: blue;
-        }
+#palette span{
+margin:5px;
+cursor:pointer;
+font-weight:bold;
+}
 
-        button {
-            padding: 8px 16px;
-            margin: 10px;
-            border: none;
-            background: #4CAF50;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+#palette span:hover{
+color:blue;
+}
 
-        button:hover {
-            background: #45a049;
-        }
+button{
+padding:8px 16px;
+margin:10px;
+border:none;
+background:#4CAF50;
+color:white;
+border-radius:5px;
+cursor:pointer;
+}
 
-        #warningBox {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #ff4444;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            display: none;
-            font-weight: bold;
-            z-index: 1000;
-        }
-    </style>
+button:hover{
+background:#45a049;
+}
+
+#warningBox{
+position:fixed;
+top:20px;
+right:20px;
+background:#ff4444;
+color:white;
+padding:15px;
+border-radius:8px;
+display:none;
+font-weight:bold;
+z-index:1000;
+}
+
+</style>
 
 </head>
 
 <body>
 
-    <h2>Online Exam</h2>
+<h2>Online Exam</h2>
 
-    <h3>Time Remaining: <span id="timer"></span></h3>
+<h3>Time Remaining: <span id="timer"></span></h3>
 
-    <div id="question-box"></div>
+<h4 id="answerCount">Answered: 0 / 0</h4>
 
-    <button onclick="prevQuestion()">Previous</button>
-    <button onclick="nextQuestion()">Next</button>
+<div id="question-box"></div>
 
-    <div class="palette" id="palette"></div>
+<button onclick="prevQuestion()">Previous</button>
+<button onclick="nextQuestion()">Next</button>
 
-    <br>
+<div class="palette" id="palette"></div>
 
-    <button onclick="submitExam()">Submit Exam</button>
+<br>
 
-    <form id="examForm" action="/submit-exam" method="POST"></form>
+<button onclick="submitExam()">Submit Exam</button>
 
-    <div id="warningBox"></div>
+<form id="examForm" action="/submit-exam" method="POST"></form>
 
-    <script>
+<div id="warningBox"></div>
 
-        let examSubmitting = false;
+<script>
 
-        let questions = {{ questions | tojson}};
-        let currentQuestion = 0;
-        let answers = {};
+let examSubmitting=false;
 
-        function loadQuestion() {
+let questions={{ questions | tojson }};
+let currentQuestion=0;
 
-            let q = questions[currentQuestion];
+let answers={};
+let visited={};
 
-            let html = "<h3>Question " + (currentQuestion + 1) + " / " + questions.length + "</h3>";
+document.getElementById("answerCount").innerText=
+"Answered: 0 / "+questions.length;
 
-            html += "<p>" + q[2] + "</p>";
 
-            html += `<input type="radio" name="option" value="A" onclick="saveAnswer('A')"> ${q[3]} <br>`;
-            html += `<input type="radio" name="option" value="B" onclick="saveAnswer('B')"> ${q[4]} <br>`;
-            html += `<input type="radio" name="option" value="C" onclick="saveAnswer('C')"> ${q[5]} <br>`;
-            html += `<input type="radio" name="option" value="D" onclick="saveAnswer('D')"> ${q[6]} <br>`;
+function loadQuestion(){
 
-            document.getElementById("question-box").innerHTML = html;
+visited[currentQuestion]=true;
 
-            let qid = questions[currentQuestion][0];
+let q=questions[currentQuestion];
 
-            if (answers[qid]) {
+let html="<h3>Question "+(currentQuestion+1)+" / "+questions.length+"</h3>";
 
-                let radios = document.getElementsByName("option");
+html+="<p>"+q[2]+"</p>";
 
-                for (let r of radios) {
+html+=`<input type="radio" name="option" value="A" onclick="saveAnswer('A')"> ${q[3]} <br>`;
+html+=`<input type="radio" name="option" value="B" onclick="saveAnswer('B')"> ${q[4]} <br>`;
+html+=`<input type="radio" name="option" value="C" onclick="saveAnswer('C')"> ${q[5]} <br>`;
+html+=`<input type="radio" name="option" value="D" onclick="saveAnswer('D')"> ${q[6]} <br>`;
 
-                    if (r.value == answers[qid]) {
-                        r.checked = true;
-                    }
+document.getElementById("question-box").innerHTML=html;
 
-                }
+let qid=questions[currentQuestion][0];
 
-            }
+if(answers[qid]){
 
-        }
+let radios=document.getElementsByName("option");
 
-        function nextQuestion() {
-            if (currentQuestion < questions.length - 1) {
-                currentQuestion++;
-                loadQuestion();
-            }
-        }
+for(let r of radios){
 
-        function prevQuestion() {
-            if (currentQuestion > 0) {
-                currentQuestion--;
-                loadQuestion();
-            }
-        }
+if(r.value==answers[qid]){
+r.checked=true;
+}
 
-        function saveAnswer(option) {
+}
 
-            let qid = questions[currentQuestion][0];
+}
 
-            answers[qid] = option;
+updatePalette();
 
-            updatePalette();
+}
 
-        }
 
-        function buildPalette() {
 
-            let paletteHTML = `<span onclick="prevQuestion()">&#60;</span>`;
+function nextQuestion(){
 
-            for (let i = 0; i < questions.length; i++) {
+if(currentQuestion<questions.length-1){
 
-                paletteHTML += `<span onclick="jumpQuestion(${i})">${i + 1}</span>`;
+currentQuestion++;
 
-            }
+loadQuestion();
 
-            paletteHTML += `<span onclick="nextQuestion()">&#62;</span>`;
+}
 
-            document.getElementById("palette").innerHTML = paletteHTML;
+}
 
-        }
 
-        function updatePalette() {
 
-            let spans = document.querySelectorAll("#palette span");
+function prevQuestion(){
 
-            for (let i = 0; i < questions.length; i++) {
+if(currentQuestion>0){
 
-                let qid = questions[i][0];
+currentQuestion--;
 
-                if (answers[qid]) {
+loadQuestion();
 
-                    spans[i + 1].style.color = "green";
+}
 
-                } else {
+}
 
-                    spans[i + 1].style.color = "black";
 
-                }
 
-            }
+function saveAnswer(option){
 
-        }
+let qid=questions[currentQuestion][0];
 
-        function jumpQuestion(index) {
+answers[qid]=option;
 
-            currentQuestion = index;
+updatePalette();
+updateAnswerCount();
 
-            loadQuestion();
+}
 
-        }
 
-        function submitExam() {
 
-            if (!confirm("Are you sure you want to submit the exam?")) {
-                return;
-            }
+function updateAnswerCount(){
 
-            let form = document.getElementById("examForm");
+let count=Object.keys(answers).length;
 
-            for (let qid in answers) {
+document.getElementById("answerCount").innerText=
+"Answered: "+count+" / "+questions.length;
 
-                let input = document.createElement("input");
+}
 
-                input.type = "hidden";
-                input.name = "q" + qid;
-                input.value = answers[qid];
 
-                form.appendChild(input);
 
-            }
+function buildPalette(){
 
-            form.submit();
+let paletteHTML=`<span onclick="prevQuestion()">&#60;</span>`;
 
-        }
-        loadQuestion();
-        buildPalette();
+for(let i=0;i<questions.length;i++){
 
-        let time = 60 * 30;
+paletteHTML+=`<span onclick="jumpQuestion(${i})">${i+1}</span>`;
 
-        let timer = setInterval(function () {
+}
 
-            let minutes = Math.floor(time / 60);
-            let seconds = time % 60;
+paletteHTML+=`<span onclick="nextQuestion()">&#62;</span>`;
 
-            document.getElementById("timer").innerHTML =
-                minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+document.getElementById("palette").innerHTML=paletteHTML;
 
-            time--;
+}
 
-            if (time < 0) {
 
-                clearInterval(timer);
 
-                showWarning("Time is up! Submitting exam...");
+function updatePalette(){
 
-                submitExam(true);
+let spans=document.querySelectorAll("#palette span");
 
-            }
+for(let i=0;i<questions.length;i++){
 
-        }, 1000);
+let qid=questions[i][0];
 
+if(answers[qid]){
 
-        function showWarning(text) {
+spans[i+1].style.color="green";
 
-            let box = document.getElementById("warningBox");
+}
+else if(visited[i]){
 
-            box.innerHTML = text;
+spans[i+1].style.color="orange";
 
-            box.style.display = "block";
+}
+else{
 
-            setTimeout(() => {
+spans[i+1].style.color="black";
 
-                box.style.display = "none";
+}
 
-            }, 3000);
+}
 
-        }
+}
 
 
-        let violations = 0;
 
-        function handleViolation() {
+function jumpQuestion(index){
 
-            if (examSubmitting) return;
+currentQuestion=index;
 
-            violations++;
+loadQuestion();
 
-            showWarning("Warning " + violations + "/2 : Tab switching detected");
+}
 
-            if (violations >= 2) {
 
-                showWarning("Too many violations. Submitting exam...");
 
-                setTimeout(() => {
-                    submitExam(true);
-                }, 2000);
+function submitExam(){
 
-            }
+if(!confirm("Are you sure you want to submit the exam?")){
+return;
+}
 
-        }
+examSubmitting=true;
 
+let form=document.getElementById("examForm");
 
-        document.addEventListener("visibilitychange", function () {
+for(let qid in answers){
 
-            if (document.hidden) {
+let input=document.createElement("input");
 
-                handleViolation();
+input.type="hidden";
+input.name="q"+qid;
+input.value=answers[qid];
 
-            }
+form.appendChild(input);
 
-        });
+}
 
+form.submit();
 
-        window.addEventListener("blur", function () {
+}
 
-            handleViolation();
 
-        });
 
+loadQuestion();
+buildPalette();
 
-    </script>
+
+
+let time=60*30;
+
+let timer=setInterval(function(){
+
+let minutes=Math.floor(time/60);
+let seconds=time%60;
+
+document.getElementById("timer").innerHTML=
+minutes+":"+(seconds<10?"0":"")+seconds;
+
+time--;
+
+if(time<0){
+
+clearInterval(timer);
+
+showWarning("Time is up! Submitting exam...");
+
+submitExam();
+
+}
+
+},1000);
+
+
+
+function showWarning(text){
+
+let box=document.getElementById("warningBox");
+
+box.innerHTML=text;
+
+box.style.display="block";
+
+setTimeout(()=>{
+
+box.style.display="none";
+
+},3000);
+
+}
+
+
+
+let violations=0;
+
+function handleViolation(){
+
+if(examSubmitting)return;
+
+violations++;
+
+showWarning("Warning "+violations+"/2 : Tab switching detected");
+
+if(violations>=2){
+
+showWarning("Too many violations. Submitting exam...");
+
+setTimeout(()=>{
+
+submitExam();
+
+},2000);
+
+}
+
+}
+
+
+
+document.addEventListener("visibilitychange",function(){
+
+if(document.hidden){
+
+handleViolation();
+
+}
+
+});
+
+
+
+window.addEventListener("blur",function(){
+
+handleViolation();
+
+});
+
+
+
+/* Disable reload */
+
+document.addEventListener("keydown",function(e){
+
+if(e.key==="F5"){
+e.preventDefault();
+}
+
+if(e.ctrlKey && e.key==="r"){
+e.preventDefault();
+}
+
+});
+
+
+
+/* Disable back button */
+
+history.pushState(null,null,location.href);
+
+window.onpopstate=function(){
+
+history.go(1);
+
+};
+
+</script>
 
 </body>
-
 </html>
