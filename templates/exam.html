@@ -60,6 +60,32 @@
             border-radius: 10px;
             text-align: center;
         }
+
+        /* Option hover highlight */
+
+        input[type="radio"] {
+            cursor: pointer;
+        }
+
+        input[type="radio"]:hover {
+            transform: scale(1.2);
+        }
+
+        label.option {
+            cursor: pointer;
+            padding: 4px;
+            display: inline-block;
+        }
+
+        label.option:hover {
+            background: #eef5ff;
+            border-radius: 4px;
+        }
+
+        #palette span:hover {
+            color: blue;
+            transform: scale(1.1);
+        }
     </style>
 </head>
 
@@ -124,10 +150,10 @@
 
             html += "<p>" + q[2] + "</p>";
 
-            html += `<input type="radio" name="opt" value="A" onclick="saveAnswer('A')"> ${q[3]}<br>`;
-            html += `<input type="radio" name="opt" value="B" onclick="saveAnswer('B')"> ${q[4]}<br>`;
-            html += `<input type="radio" name="opt" value="C" onclick="saveAnswer('C')"> ${q[5]}<br>`;
-            html += `<input type="radio" name="opt" value="D" onclick="saveAnswer('D')"> ${q[6]}<br>`;
+            html += `<label class="option"><input type="radio" name="opt" value="A" onclick="saveAnswer('A')"> ${q[3]}</label><br>`;
+            html += `<label class="option"><input type="radio" name="opt" value="B" onclick="saveAnswer('B')"> ${q[4]}</label><br>`;
+            html += `<label class="option"><input type="radio" name="opt" value="C" onclick="saveAnswer('C')"> ${q[5]}</label><br>`;
+            html += `<label class="option"><input type="radio" name="opt" value="D" onclick="saveAnswer('D')"> ${q[6]}</label><br>`;
 
             document.getElementById("question-box").innerHTML = html;
 
@@ -386,6 +412,26 @@
         buildPalette();
         loadQuestion();
         startTimer();
+        /* BLOCK RELOAD */
+
+        document.addEventListener("keydown", function (e) {
+
+            if (e.key === "F5") {
+                e.preventDefault();
+                showWarning("Reload disabled during exam");
+            }
+
+            if (e.ctrlKey && e.key === "r") {
+                e.preventDefault();
+                showWarning("Reload disabled during exam");
+            }
+
+            if (e.ctrlKey && e.shiftKey && e.key === "R") {
+                e.preventDefault();
+                showWarning("Hard reload disabled");
+            }
+
+        });
 
     </script>
 
