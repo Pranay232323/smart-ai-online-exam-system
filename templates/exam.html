@@ -420,33 +420,36 @@
         buildPalette();
         loadQuestion();
         startTimer();
-        /* BLOCK RELOAD */
+        /* -------- DISABLE RELOAD DURING EXAM -------- */
 
-        window.addEventListener("keydown", function (e) {
+        document.addEventListener("keydown", function (e) {
 
+            // F5
             if (e.key === "F5") {
                 e.preventDefault();
+                e.stopPropagation();
                 return false;
             }
 
-            if (e.ctrlKey && e.key === "r") {
+            // Ctrl + R
+            if (e.ctrlKey && e.key.toLowerCase() === "r") {
                 e.preventDefault();
+                e.stopPropagation();
                 return false;
             }
 
-            if (e.ctrlKey && e.shiftKey && e.key === "R") {
+            // Ctrl + Shift + R
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "r") {
                 e.preventDefault();
+                e.stopPropagation();
                 return false;
             }
 
         });
-
-        /* BLOCK BROWSER RELOAD BUTTON */
+        /* BLOCK PAGE REFRESH BUTTON */
 
         window.onbeforeunload = function () {
-
             return "Reload is disabled during the exam.";
-
         };
 
     </script>
