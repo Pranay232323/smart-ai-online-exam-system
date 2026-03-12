@@ -82,9 +82,17 @@
             border-radius: 4px;
         }
 
+        /* Palette hover */
+
+        #palette span {
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
         #palette span:hover {
-            color: blue;
-            transform: scale(1.1);
+            color: white;
+            background: #007bff;
         }
     </style>
 </head>
@@ -414,24 +422,32 @@
         startTimer();
         /* BLOCK RELOAD */
 
-        document.addEventListener("keydown", function (e) {
+        window.addEventListener("keydown", function (e) {
 
             if (e.key === "F5") {
                 e.preventDefault();
-                showWarning("Reload disabled during exam");
+                return false;
             }
 
             if (e.ctrlKey && e.key === "r") {
                 e.preventDefault();
-                showWarning("Reload disabled during exam");
+                return false;
             }
 
             if (e.ctrlKey && e.shiftKey && e.key === "R") {
                 e.preventDefault();
-                showWarning("Hard reload disabled");
+                return false;
             }
 
         });
+
+        /* BLOCK BROWSER RELOAD BUTTON */
+
+        window.onbeforeunload = function () {
+
+            return "Reload is disabled during the exam.";
+
+        };
 
     </script>
 
