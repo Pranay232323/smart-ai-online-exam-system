@@ -1,27 +1,31 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<title>Student Dashboard</title>
+    <title>Student Dashboard</title>
 </head>
 
 <body>
 
-<h1>Student Dashboard</h1>
+    <h1>Student Dashboard</h1>
 
-<h3>Available Exams</h3>
+    <h3>Available Exams</h3>
 
-<ul>
-{% for exam in exams %}
-    <li>
-        {{ exam[1] }} 
-        <a href="/start-exam/{{ exam[0] }}">Start Exam</a>
-    </li>
-{% endfor %}
-</ul>
+    <ul>
+        {% for exam in exams %}
+        <li>
+            {{ exam[1] }}
+            <a href="/start-exam/{{ exam[0] }}">Start Exam</a>
+        </li>
+        {% endfor %}
+    </ul>
 
-<br>
-
-<a href="/">Logout</a>
+    <br>
+    <a href="/exam-history">
+        <button>My Exam History</button>
+    </a>
+    <a href="/">Logout</a>
 
 </body>
+
 </html>

@@ -186,6 +186,24 @@ def submit_exam():
         questions=questions,
         student_answers=student_answers
     )
+#------Student Exam History------
+@app.route("/exam-history")
+def exam_history():
+
+    student_id = 2   # later this will come from login session
+
+    sql = """
+    SELECT exams.title, results.score, results.total_questions
+    FROM results
+    JOIN exams ON exams.id = results.exam_id
+    WHERE results.student_id = %s
+    ORDER BY results.id DESC
+    """
+
+    cursor.execute(sql, (student_id,))
+    history = cursor.fetchall()
+
+    return render_template("exam_history.html", history=history)
 
 if __name__ == "__main__":
     app.run(debug=True)
