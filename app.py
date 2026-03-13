@@ -129,16 +129,24 @@ def start_exam(exam_id):
     cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
     questions = cursor.fetchall()
 
-    print(questions)   # DEBUG LINE
+    cursor.execute("SELECT duration FROM exams WHERE id=%s", (exam_id,))
+    exam = cursor.fetchone()
 
-    return render_template("exam.html", questions=questions)
+    duration = exam[0]
+
+    return render_template(
+        "exam.html",
+        questions=questions,
+        exam_id=exam_id,
+        exam_duration=duration
+    )
 
 #------submit exam------
 @app.route("/submit-exam", methods=["POST"])
 def submit_exam():
 
     student_id = 2
-    exam_id = 1
+    exam_id = request.form["exam_id"]
 
     cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
     questions = cursor.fetchall()
@@ -173,7 +181,6 @@ def submit_exam():
         total=total_questions,
         percentage=percentage
     )
-
 
 
 if __name__ == "__main__":

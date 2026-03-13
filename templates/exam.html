@@ -118,8 +118,9 @@
 
     <button onclick="showPopup()">Submit Exam</button>
 
-    <form id="examForm" action="/submit-exam" method="POST"></form>
-
+    <form id="examForm" action="/submit-exam" method="POST">
+        <input type="hidden" name="exam_id" value="{{ exam_id }}">
+    </form>
     <div id="warningBox"></div>
 
     <div id="popupOverlay">
@@ -131,7 +132,7 @@
         </div>
     </div>
 
-    <h4>Point</h4>
+    <h4>Status</h4>
     <p style="color:green">● Answered</p>
     <p style="color:orange">● Visited but unanswered</p>
     <p style="color:black">● Not visited</p>
@@ -338,7 +339,7 @@
 
         /* ---------------- TIMER ---------------- */
 
-        let time = 30 * 60;
+        let time = {{ exam_duration }} * 60;
 
         function startTimer() {
 
@@ -446,7 +447,7 @@
             }
 
         });
-        
+
 
     </script>
 
