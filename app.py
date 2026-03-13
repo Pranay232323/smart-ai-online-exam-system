@@ -263,6 +263,37 @@ def admin_analytics():
         avg_score=avg_score,
         top_student=top_student
     )
+#------AI Question Generator Page------
+@app.route("/ai-generator")
+def ai_generator():
+    return render_template("ai_generator.html")
+
+import openai
+
+openai.api_key = "YOUR_OPENAI_API_KEY"
+
+@app.route("/generate-questions", methods=["POST"])
+def generate_questions():
+
+    topic = request.form["topic"]
+    difficulty = request.form["difficulty"]
+    count = request.form["count"]
+
+    prompt = f"""
+    Generate {count} multiple choice questions on {topic}.
+    Difficulty level: {difficulty}.
+    Each question must have 4 options and one correct answer.
+    """
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"user","content":prompt}]
+    )
+
+    questions = response["choices"][0]["message"]["content"]
+
+    return render_template("ai_result.html", questions=questions)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
