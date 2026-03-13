@@ -152,6 +152,7 @@ def submit_exam():
     questions = cursor.fetchall()
 
     score = 0
+    student_answers = {}
 
     for q in questions:
 
@@ -160,12 +161,14 @@ def submit_exam():
 
         student_answer = request.form.get(f"q{qid}")
 
+        student_answers[qid] = student_answer
+
         if student_answer == correct_answer:
             score += 1
 
     total_questions = len(questions)
 
-    percentage = (score / total_questions) * 100
+    percentage = (score / total_questions) * 100 if total_questions > 0 else 0
 
     sql = """
     INSERT INTO results (student_id, exam_id, score, total_questions)
@@ -179,9 +182,10 @@ def submit_exam():
         "result.html",
         score=score,
         total=total_questions,
-        percentage=percentage
+        percentage=percentage,
+        questions=questions,
+        student_answers=student_answers
     )
-
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,27 +1,56 @@
 <!DOCTYPE html>
 <html>
-<head>
 
+<head>
 <title>Exam Result</title>
 
 <style>
 
 body{
-font-family: Arial;
+font-family:Arial;
 text-align:center;
-margin-top:100px;
+margin-top:80px;
 }
 
 .result-box{
 border:1px solid #ccc;
 padding:40px;
-width:400px;
+width:600px;
 margin:auto;
 border-radius:10px;
 }
 
-h1{
-color:#4CAF50;
+.correct{
+color:green;
+font-weight:bold;
+}
+
+.wrong{
+color:red;
+font-weight:bold;
+}
+
+.question{
+margin-top:20px;
+text-align:left;
+}
+
+.review-section{
+display:none;
+margin-top:30px;
+}
+
+button{
+padding:8px 16px;
+background:#4CAF50;
+color:white;
+border:none;
+border-radius:5px;
+cursor:pointer;
+}
+
+button:hover{
+background:#45a049;
 }
 
 </style>
@@ -40,21 +69,91 @@ color:#4CAF50;
 
 <br>
 
+<button onclick="toggleReview()">Review Answers</button>
+
+<div class="review-section" id="reviewSection">
+
+<h2>Answer Review</h2>
+
+{% for q in questions %}
+
+<div class="question">
+
+<p><b>Q{{ loop.index }}. {{ q[2] }}</b></p>
+
+<p>
+Your Answer:
+{% if student_answers[q[0]] == "A" %}
+<span class="{% if q[7]=='A' %}correct{% else %}wrong{% endif %}">
+A) {{ q[3] }} {% if q[7]=='A' %}✔{% else %}❌{% endif %}
+</span>
+
+{% elif student_answers[q[0]] == "B" %}
+<span class="{% if q[7]=='B' %}correct{% else %}wrong{% endif %}">
+B) {{ q[4] }} {% if q[7]=='B' %}✔{% else %}❌{% endif %}
+</span>
+
+{% elif student_answers[q[0]] == "C" %}
+<span class="{% if q[7]=='C' %}correct{% else %}wrong{% endif %}">
+C) {{ q[5] }} {% if q[7]=='C' %}✔{% else %}❌{% endif %}
+</span>
+
+{% elif student_answers[q[0]] == "D" %}
+<span class="{% if q[7]=='D' %}correct{% else %}wrong{% endif %}">
+D) {{ q[6] }} {% if q[7]=='D' %}✔{% else %}❌{% endif %}
+</span>
+
+{% else %}
+<span class="wrong">Not Answered</span>
+{% endif %}
+</p>
+
+{% if student_answers[q[0]] != q[7] %}
+<p class="correct">
+Correct Answer:
+{% if q[7]=="A" %} A) {{ q[3] }}
+{% elif q[7]=="B" %} B) {{ q[4] }}
+{% elif q[7]=="C" %} C) {{ q[5] }}
+{% elif q[7]=="D" %} D) {{ q[6] }}
+{% endif %}
+✔
+</p>
+{% endif %}
+
+</div>
+
+{% endfor %}
+
+</div>
+
+<br>
+
 <a href="/dashboard">Back to Dashboard</a>
 
 </div>
 
 <script>
 
-history.pushState(null, null, location.href);
+function toggleReview(){
 
-window.onpopstate = function () {
+let section = document.getElementById("reviewSection");
 
+if(section.style.display==="none"){
+section.style.display="block";
+}else{
+section.style.display="none";
+}
+
+}
+
+history.pushState(null,null,location.href);
+
+window.onpopstate=function(){
 history.go(1);
-
 };
 
 </script>
 
 </body>
+
 </html>
