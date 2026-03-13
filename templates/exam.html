@@ -138,7 +138,9 @@
     <p style="color:black">● Not visited</p>
 
     <script>
-
+        if (performance.navigation.type === 1) {
+            window.location.href = "/dashboard";
+        }
         let questions = {{ questions | tojson }};
         let currentQuestion = 0;
 
@@ -447,7 +449,19 @@
             }
 
         });
+        /* RELOAD WARNING */
 
+        window.addEventListener("beforeunload", function (e) {
+
+            if (!examSubmitting) {
+
+                e.preventDefault();
+
+                e.returnValue = "You will leave the exam and go back to dashboard.";
+
+            }
+
+        });
 
     </script>
 
