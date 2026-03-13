@@ -225,6 +225,45 @@ def leaderboard():
 
     return render_template("leaderboard.html", leaderboard=leaderboard_data)
 
+#------Admin Analytics Dashboard------
+@app.route("/admin-analytics")
+def admin_analytics():
+
+    # Total Students
+    cursor.execute("SELECT COUNT(*) FROM users WHERE role='student'")
+    total_students = cursor.fetchone()[0]
+
+    # Total Exams
+    cursor.execute("SELECT COUNT(*) FROM exams")
+    total_exams = cursor.fetchone()[0]
+
+    # Total Attempts
+    cursor.execute("SELECT COUNT(*) FROM results")
+    total_attempts = cursor.fetchone()[0]
+
+    # Average Percentage Score
+    cursor.execute("SELECT AVG(score/total_questions*100) FROM results")
+    avg_score = cursor.fetchone()[0]
+
+    # Top Performer
+    cursor.execute("""
+        SELECT users.name, (results.score/results.total_questions*100) AS percentage
+        FROM results
+        JOIN users ON users.id = results.student_id
+        ORDER BY percentage DESC
+        LIMIT 1
+    """)
+    top_student = cursor.fetchone()
+
+    return render_template(
+        "admin_analytics.html",
+        total_students=total_students,
+        total_exams=total_exams,
+        total_attempts=total_attempts,
+        avg_score=avg_score,
+        top_student=top_student
+    )
+
 if __name__ == "__main__":
     app.run(debug=True)
 

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Admin Analytics</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+text-align:center;
+margin-top:60px;
+}
+
+.box{
+background:white;
+width:600px;
+margin:auto;
+padding:40px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.2);
+}
+
+.stat{
+font-size:20px;
+margin:15px 0;
+padding:10px;
+background:#f9f9f9;
+border-radius:6px;
+}
+
+h1{
+color:#4CAF50;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+
+<h1>Admin Analytics Dashboard</h1>
+
+<div class="stat">Total Students: {{ total_students }}</div>
+
+<div class="stat">Total Exams: {{ total_exams }}</div>
+
+<div class="stat">Total Attempts: {{ total_attempts }}</div>
+
+<div class="stat">
+Average Score: {{ avg_score|round(2) if avg_score else 0 }}%
+</div>
+
+<div class="stat">
+Top Performer:
+{% if top_student %}
+{{ top_student[0] }} ({{ top_student[1]|round(2) }}%)
+{% else %}
+N/A
+{% endif %}
+</div>
+
+<br>
+
+<a href="/admin-dashboard">Back to Admin Panel</a>
+
+</div>
+
+</body>
+
+</html>
