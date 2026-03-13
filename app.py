@@ -204,6 +204,26 @@ def exam_history():
     history = cursor.fetchall()
 
     return render_template("exam_history.html", history=history)
+#------Leaderboard------
+@app.route("/leaderboard")
+def leaderboard():
+
+    sql = """
+    SELECT users.name,
+           results.score,
+           results.total_questions,
+           exams.title
+    FROM results
+    JOIN users ON users.id = results.student_id
+    JOIN exams ON exams.id = results.exam_id
+    ORDER BY results.score DESC
+    LIMIT 10
+    """
+
+    cursor.execute(sql)
+    leaderboard_data = cursor.fetchall()
+
+    return render_template("leaderboard.html", leaderboard=leaderboard_data)
 
 if __name__ == "__main__":
     app.run(debug=True)
