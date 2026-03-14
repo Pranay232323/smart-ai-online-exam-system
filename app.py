@@ -123,15 +123,6 @@ def save_question():
     return "Question Added Successfully"
 
 #------Start exam------
-student_id = 2
-
-sql = """
-INSERT INTO exam_activity (student_id, exam_id, status, start_time)
-VALUES (%s, %s, 'active', NOW())
-"""
-
-cursor.execute(sql, (student_id, exam_id))
-db.commit()
 
 @app.route("/start-exam/<int:exam_id>")
 def start_exam(exam_id):
@@ -152,13 +143,7 @@ def start_exam(exam_id):
     )
 
 #------submit exam------
-cursor.execute("""
-UPDATE exam_activity
-SET status='submitted'
-WHERE student_id=%s AND exam_id=%s
-""", (student_id, exam_id))
 
-db.commit()
 @app.route("/submit-exam", methods=["POST"])
 def submit_exam():
 
@@ -177,6 +162,7 @@ def submit_exam():
         correct_answer = q[7]
 
         student_answer = request.form.get(f"q{qid}")
+        
 
         student_answers[qid] = student_answer
 
@@ -193,6 +179,19 @@ def submit_exam():
     """
 
     cursor.execute(sql, (student_id, exam_id, score, total_questions))
+    # Save student answer for analytics
+    sql = """
+    INSERT INTO student_answers
+    (student_id, exam_id, question_id, student_answer, correct_answer)
+    VALUES (%s,%s,%s,%s,%s)
+   """
+
+    cursor.execute(sql, (
+    student_id,
+    exam_id,
+    qid,
+    student_answer,
+    correct_answer))
     db.commit()
 
     return render_template(
@@ -296,6 +295,7 @@ def monitor_exams():
     activity = cursor.fetchall()
 
     return render_template("monitor.html", activity=activity)
+
 
 
 if __name__ == "__main__":
