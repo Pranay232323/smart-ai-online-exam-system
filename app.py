@@ -123,6 +123,16 @@ def save_question():
     return "Question Added Successfully"
 
 #------Start exam------
+student_id = 2
+
+sql = """
+INSERT INTO exam_activity (student_id, exam_id, status, start_time)
+VALUES (%s, %s, 'active', NOW())
+"""
+
+cursor.execute(sql, (student_id, exam_id))
+db.commit()
+
 @app.route("/start-exam/<int:exam_id>")
 def start_exam(exam_id):
 
@@ -142,6 +152,13 @@ def start_exam(exam_id):
     )
 
 #------submit exam------
+cursor.execute("""
+UPDATE exam_activity
+SET status='submitted'
+WHERE student_id=%s AND exam_id=%s
+""", (student_id, exam_id))
+
+db.commit()
 @app.route("/submit-exam", methods=["POST"])
 def submit_exam():
 
@@ -263,36 +280,22 @@ def admin_analytics():
         avg_score=avg_score,
         top_student=top_student
     )
-#------AI Question Generator Page------
-@app.route("/ai-generator")
-def ai_generator():
-    return render_template("ai_generator.html")
+#------monitor------
+@app.route("/monitor-exams")
+def monitor_exams():
 
-import openai
-
-openai.api_key = "YOUR_OPENAI_API_KEY"
-
-@app.route("/generate-questions", methods=["POST"])
-def generate_questions():
-
-    topic = request.form["topic"]
-    difficulty = request.form["difficulty"]
-    count = request.form["count"]
-
-    prompt = f"""
-    Generate {count} multiple choice questions on {topic}.
-    Difficulty level: {difficulty}.
-    Each question must have 4 options and one correct answer.
+    sql = """
+    SELECT users.name, exams.title, exam_activity.status, exam_activity.warning_count
+    FROM exam_activity
+    JOIN users ON users.id = exam_activity.student_id
+    JOIN exams ON exams.id = exam_activity.exam_id
+    ORDER BY exam_activity.id DESC
     """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[{"role":"user","content":prompt}]
-    )
+    cursor.execute(sql)
+    activity = cursor.fetchall()
 
-    questions = response["choices"][0]["message"]["content"]
-
-    return render_template("ai_result.html", questions=questions)
+    return render_template("monitor.html", activity=activity)
 
 
 if __name__ == "__main__":
