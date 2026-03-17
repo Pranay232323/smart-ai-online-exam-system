@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Student Performance</title>
+
+<style>
+
+body{
+font-family:Arial;
+text-align:center;
+margin-top:50px;
+}
+
+table{
+width:80%;
+margin:auto;
+border-collapse:collapse;
+}
+
+th,td{
+padding:10px;
+border:1px solid #ccc;
+}
+
+th{
+background:#4CAF50;
+color:white;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Student Performance Analytics</h1>
+
+<table>
+
+<tr>
+<th>Student</th>
+<th>Exam</th>
+<th>Score</th>
+<th>Percentage</th>
+</tr>
+
+{% for row in performance %}
+
+<tr>
