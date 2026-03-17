@@ -3,93 +3,10 @@
 
 <head>
     <title>Exam</title>
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-
-        #palette span {
-            margin: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 18px;
-            padding: 4px 6px;
-            border-radius: 4px;
-        }
-
-        #palette span:hover {
-            color: white;
-            background: #007bff;
-        }
-
-        button {
-            padding: 8px 16px;
-            margin: 10px;
-            border: none;
-            background: #4caf50;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #45a049;
-        }
-
-        #warningBox {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #ff4444;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            display: none;
-            z-index: 1000;
-        }
-
-        #popupOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            display: none;
-            justify-content: center;
-            align-items: center;
-        }
-
-        #popupBox {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        input[type="radio"] {
-            cursor: pointer;
-        }
-
-        input[type="radio"]:hover {
-            transform: scale(1.2);
-        }
-
-        label.option {
-            cursor: pointer;
-            padding: 4px;
-            display: inline-block;
-        }
-
-        label.option:hover {
-            background: #eef5ff;
-            border-radius: 4px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/exam.css') }}">
 </head>
 
-<body>
+<body id="examApp" data-exam-id="{{ exam_id }}" data-exam-duration="{{ exam_duration }}">
 
     <h2>Online Exam</h2>
     <p>Student: {{ student_name }}</p>
@@ -98,8 +15,8 @@
 
     <div id="question-box"></div>
 
-    <button onclick="prevQuestion()">Previous</button>
-    <button onclick="nextQuestion()">Next</button>
+    <button type="button" onclick="prevQuestion()">Previous</button>
+    <button type="button" onclick="nextQuestion()">Next</button>
 
     <br><br>
 
@@ -107,7 +24,7 @@
 
     <br>
 
-    <button onclick="showPopup()">Submit Exam</button>
+    <button type="button" onclick="showPopup()">Submit Exam</button>
 
     <form id="examForm" action="/submit-exam" method="POST">
         <input type="hidden" name="exam_id" value="{{ exam_id }}">
@@ -120,8 +37,8 @@
         <div id="popupBox">
             <h3>Submit Exam?</h3>
             <p>Are you sure you want to submit?</p>
-            <button onclick="submitExam('Submitted')">Yes Submit</button>
-            <button onclick="closePopup()">Cancel</button>
+            <button type="button" onclick="submitExam('Submitted')">Yes Submit</button>
+            <button type="button" onclick="closePopup()">Cancel</button>
         </div>
     </div>
 
@@ -130,215 +47,8 @@
     <p style="color:orange">Visited but unanswered</p>
     <p style="color:black">Not visited</p>
 
-    <script>
-        const examId = "{{ exam_id }}";
-        let questions = {{ questions | tojson }};
-        let currentQuestion = 0;
-        let answers = {};
-        let visited = {};
-        let examSubmitting = false;
-        let violations = 0;
-        let time = {{ exam_duration }} * 60;
-
-        function notifyExamEvent(status, incrementWarning = false) {
-            const body = new URLSearchParams({
-                exam_id: examId,
-                status: status,
-                increment_warning: incrementWarning ? "true" : "false"
-            });
-
-            return fetch("/exam-event", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                body: body.toString()
-            }).catch(() => null);
-        }
-
-        function loadQuestion() {
-            visited[currentQuestion] = true;
-
-            let q = questions[currentQuestion];
-            let html = "<h3>Question " + (currentQuestion + 1) + " / " + questions.length + "</h3>";
-            html += "<p>" + q[2] + "</p>";
-            html += `<label class="option"><input type="radio" name="opt" value="A" onclick="saveAnswer('A')"> ${q[3]}</label><br>`;
-            html += `<label class="option"><input type="radio" name="opt" value="B" onclick="saveAnswer('B')"> ${q[4]}</label><br>`;
-            html += `<label class="option"><input type="radio" name="opt" value="C" onclick="saveAnswer('C')"> ${q[5]}</label><br>`;
-            html += `<label class="option"><input type="radio" name="opt" value="D" onclick="saveAnswer('D')"> ${q[6]}</label><br>`;
-
-            document.getElementById("question-box").innerHTML = html;
-
-            let qid = q[0];
-            if (answers[qid]) {
-                let radios = document.getElementsByName("opt");
-                for (let r of radios) {
-                    if (r.value === answers[qid]) {
-                        r.checked = true;
-                    }
-                }
-            }
-
-            updatePalette();
-            updateCounter();
-        }
-
-        function saveAnswer(opt) {
-            let qid = questions[currentQuestion][0];
-            answers[qid] = opt;
-            updateCounter();
-            updatePalette();
-        }
-
-        function updateCounter() {
-            let answered = Object.keys(answers).length;
-            document.getElementById("answerCount").innerText =
-                "Answered: " + answered + " / " + questions.length;
-        }
-
-        function nextQuestion() {
-            if (currentQuestion < questions.length - 1) {
-                currentQuestion++;
-                loadQuestion();
-            }
-        }
-
-        function prevQuestion() {
-            if (currentQuestion > 0) {
-                currentQuestion--;
-                loadQuestion();
-            }
-        }
-
-        function jumpQuestion(i) {
-            currentQuestion = i;
-            loadQuestion();
-        }
-
-        function buildPalette() {
-            let html = "<span onclick='prevQuestion()'><</span>";
-
-            for (let i = 0; i < questions.length; i++) {
-                html += `<span id="p${i}" onclick="jumpQuestion(${i})">${i + 1}</span>`;
-            }
-
-            html += "<span onclick='nextQuestion()'>></span>";
-            document.getElementById("palette").innerHTML = html;
-        }
-
-        function updatePalette() {
-            for (let i = 0; i < questions.length; i++) {
-                let el = document.getElementById("p" + i);
-                if (!el) {
-                    continue;
-                }
-
-                let qid = questions[i][0];
-
-                if (answers[qid]) {
-                    el.style.color = "green";
-                } else if (visited[i]) {
-                    el.style.color = "orange";
-                } else {
-                    el.style.color = "black";
-                }
-
-                el.style.textDecoration = i === currentQuestion ? "underline" : "none";
-            }
-        }
-
-        function showPopup() {
-            document.getElementById("popupOverlay").style.display = "flex";
-        }
-
-        function closePopup() {
-            document.getElementById("popupOverlay").style.display = "none";
-        }
-
-        function submitExam(status = "Submitted") {
-            if (examSubmitting) {
-                return;
-            }
-
-            examSubmitting = true;
-            document.getElementById("finalStatus").value = status;
-
-            let form = document.getElementById("examForm");
-
-            for (let qid in answers) {
-                let input = document.createElement("input");
-                input.type = "hidden";
-                input.name = "q" + qid;
-                input.value = answers[qid];
-                form.appendChild(input);
-            }
-
-            notifyExamEvent(status, false).finally(() => form.submit());
-        }
-
-        function startTimer() {
-            setInterval(function () {
-                let m = Math.floor(time / 60);
-                let s = time % 60;
-
-                document.getElementById("timer").innerText =
-                    m + ":" + (s < 10 ? "0" : "") + s;
-
-                time--;
-
-                if (time <= 0) {
-                    submitExam("Auto Submitted");
-                }
-            }, 1000);
-        }
-
-        function showWarning(txt) {
-            let box = document.getElementById("warningBox");
-            box.innerText = txt;
-            box.style.display = "block";
-
-            setTimeout(() => {
-                box.style.display = "none";
-            }, 3000);
-        }
-
-        document.addEventListener("visibilitychange", function () {
-            if (document.hidden && !examSubmitting) {
-                violations++;
-                showWarning("Tab switching detected " + violations + "/1");
-                notifyExamEvent("Warning Issued", true);
-
-                if (violations >= 1) {
-                    submitExam("Auto Submitted");
-                }
-            }
-        });
-
-        document.addEventListener("keydown", function (e) {
-            if (
-                e.key === "F5" ||
-                (e.ctrlKey && e.key.toLowerCase() === "r") ||
-                (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "r")
-            ) {
-                e.preventDefault();
-                e.stopPropagation();
-                showWarning("Reload disabled during exam");
-                notifyExamEvent("Warning Issued", true);
-                return false;
-            }
-        });
-
-        window.addEventListener("beforeunload", function (e) {
-            if (!examSubmitting) {
-                e.preventDefault();
-                e.returnValue = "You will leave the exam and go back to dashboard.";
-            }
-        });
-
-        buildPalette();
-        loadQuestion();
-        startTimer();
-    </script>
+    <script id="questions-data" type="application/json">{{ questions | tojson }}</script>
+    <script src="{{ url_for('static', filename='js/exam.js') }}"></script>
 
 </body>
 

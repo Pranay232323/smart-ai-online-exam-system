@@ -4,32 +4,7 @@
 <head>
 
 <title>Student Performance</title>
-
-<style>
-
-body{
-font-family:Arial;
-text-align:center;
-margin-top:50px;
-}
-
-table{
-width:80%;
-margin:auto;
-border-collapse:collapse;
-}
-
-th,td{
-padding:10px;
-border:1px solid #ccc;
-}
-
-th{
-background:#4CAF50;
-color:white;
-}
-
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/student_performance.css') }}">
 
 </head>
 
@@ -58,3 +33,11 @@ color:white;
 {% endfor %}
 
 </table>
+
+<br>
+
+<a href="/admin-dashboard">Back to Admin Panel</a>
+
+</body>
+
+</html>

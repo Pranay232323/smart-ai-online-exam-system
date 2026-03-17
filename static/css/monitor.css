@@ -1,0 +1,32 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    text-align: center;
+    margin-top: 50px;
+}
+
+.box {
+    width: 80%;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.12);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th,
+td {
+    padding: 12px;
+    border: 1px solid #ddd;
+}
+
+th {
+    background: #0f766e;
+    color: white;
+}

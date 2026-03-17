@@ -6,26 +6,7 @@
 <title>Performance Chart</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-
-body{
-font-family:Arial;
-background:#f4f4f4;
-text-align:center;
-margin-top:50px;
-}
-
-.box{
-background:white;
-width:700px;
-margin:auto;
-padding:30px;
-border-radius:10px;
-box-shadow:0 0 10px rgba(0,0,0,0.2);
-}
-
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/performance_chart.css') }}">
 
 </head>
 
@@ -43,23 +24,8 @@ box-shadow:0 0 10px rgba(0,0,0,0.2);
 
 </div>
 
-<script>
-
-let names = {{ names|tojson }};
-let scores = {{ scores|tojson }};
-
-new Chart(document.getElementById("myChart"), {
-    type: 'bar',
-    data: {
-        labels: names,
-        datasets: [{
-            label: 'Average Percentage',
-            data: scores
-        }]
-    }
-});
-
-</script>
+<div id="chart-data" data-names='{{ names|tojson }}' data-scores='{{ scores|tojson }}'></div>
+<script src="{{ url_for('static', filename='js/performance_chart.js') }}"></script>
 
 </body>
 </html>

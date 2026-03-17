@@ -1,0 +1,81 @@
+body {
+    font-family: Arial, sans-serif;
+}
+
+#palette span {
+    margin: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 18px;
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+
+#palette span:hover {
+    color: white;
+    background: #007bff;
+}
+
+button {
+    padding: 8px 16px;
+    margin: 10px;
+    border: none;
+    background: #4caf50;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #45a049;
+}
+
+#warningBox {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ff4444;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    display: none;
+    z-index: 1000;
+}
+
+#popupOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+#popupBox {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+input[type="radio"] {
+    cursor: pointer;
+}
+
+input[type="radio"]:hover {
+    transform: scale(1.2);
+}
+
+label.option {
+    cursor: pointer;
+    padding: 4px;
+    display: inline-block;
+}
+
+label.option:hover {
+    background: #eef5ff;
+    border-radius: 4px;
+}

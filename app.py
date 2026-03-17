@@ -5,11 +5,24 @@ app = Flask(__name__)
 app.secret_key = "smart-ai-online-exam-system-secret-key"
 
 # MySQL connection
-db = mysql.connector.connect(
-    host="localhost", user="root", password="@Pranay23", database="exam_system"
-)
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "@Pranay23",
+    "database": "exam_system",
+}
+
+db = mysql.connector.connect(**DB_CONFIG)
 
 cursor = db.cursor()
+
+
+def get_cursor():
+    return db.cursor(buffered=True)
+
+
+def get_db_connection():
+    return mysql.connector.connect(**DB_CONFIG)
 
 
 def get_current_user_id():
@@ -237,22 +250,29 @@ def generate_student_chatbot_reply(message, student_id):
 
 
 def create_exam_activity(student_id, exam_id):
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
     try:
-        cursor.execute(
+        local_cursor.execute(
             """
             INSERT INTO exam_activity (student_id, exam_id, status, warning_count)
             VALUES (%s, %s, %s, %s)
             """,
             (student_id, exam_id, "In Progress", 0),
         )
-        db.commit()
+        local_db.commit()
     except mysql.connector.Error:
-        db.rollback()
+        local_db.rollback()
+    finally:
+        local_cursor.close()
+        local_db.close()
 
 
 def update_exam_activity(student_id, exam_id, status=None, increment_warning=False):
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
     try:
-        cursor.execute(
+        local_cursor.execute(
             """
             SELECT id, warning_count
             FROM exam_activity
@@ -262,11 +282,11 @@ def update_exam_activity(student_id, exam_id, status=None, increment_warning=Fal
             """,
             (student_id, exam_id),
         )
-        activity = cursor.fetchone()
+        activity = local_cursor.fetchone()
 
         if not activity:
             create_exam_activity(student_id, exam_id)
-            cursor.execute(
+            local_cursor.execute(
                 """
                 SELECT id, warning_count
                 FROM exam_activity
@@ -276,7 +296,7 @@ def update_exam_activity(student_id, exam_id, status=None, increment_warning=Fal
                 """,
                 (student_id, exam_id),
             )
-            activity = cursor.fetchone()
+            activity = local_cursor.fetchone()
 
         if not activity:
             return
@@ -285,7 +305,7 @@ def update_exam_activity(student_id, exam_id, status=None, increment_warning=Fal
         new_warning_count = warning_count + 1 if increment_warning else warning_count
         new_status = status if status else "In Progress"
 
-        cursor.execute(
+        local_cursor.execute(
             """
             UPDATE exam_activity
             SET status = %s, warning_count = %s
@@ -293,9 +313,12 @@ def update_exam_activity(student_id, exam_id, status=None, increment_warning=Fal
             """,
             (new_status, new_warning_count, activity_id),
         )
-        db.commit()
+        local_db.commit()
     except mysql.connector.Error:
-        db.rollback()
+        local_db.rollback()
+    finally:
+        local_cursor.close()
+        local_db.close()
 
 
 @app.route("/")
@@ -472,11 +495,15 @@ def start_exam(exam_id):
     if redirect_response:
         return redirect_response
 
-    cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
-    questions = cursor.fetchall()
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
+    local_cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
+    questions = local_cursor.fetchall()
 
-    cursor.execute("SELECT duration FROM exams WHERE id=%s", (exam_id,))
-    exam = cursor.fetchone()
+    local_cursor.execute("SELECT duration FROM exams WHERE id=%s", (exam_id,))
+    exam = local_cursor.fetchone()
+    local_cursor.close()
+    local_db.close()
 
     if not exam:
         return "Exam not found"
@@ -524,8 +551,10 @@ def submit_exam():
     exam_id = request.form["exam_id"]
     final_status = request.form.get("final_status", "Submitted")
 
-    cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
-    questions = cursor.fetchall()
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
+    local_cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
+    questions = local_cursor.fetchall()
 
     score = 0
     student_answers = {}
@@ -543,7 +572,7 @@ def submit_exam():
     total_questions = len(questions)
     percentage = (score / total_questions) * 100 if total_questions > 0 else 0
 
-    cursor.execute(
+    local_cursor.execute(
         """
         INSERT INTO results (student_id, exam_id, score, total_questions)
         VALUES (%s, %s, %s, %s)
@@ -561,12 +590,14 @@ def submit_exam():
         qid = q[0]
         correct_answer = q[7]
         student_answer = student_answers.get(qid)
-        cursor.execute(
+        local_cursor.execute(
             answer_sql,
             (student_id, exam_id, qid, student_answer, correct_answer),
         )
 
-    db.commit()
+    local_db.commit()
+    local_cursor.close()
+    local_db.close()
     update_exam_activity(student_id, exam_id, status=final_status)
 
     return render_template(

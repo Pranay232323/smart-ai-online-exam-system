@@ -1,0 +1,37 @@
+body {
+    font-family: Arial;
+    background: #f4f4f4;
+    text-align: center;
+    margin-top: 60px;
+}
+
+.board {
+    background: white;
+    padding: 40px;
+    width: 600px;
+    margin: auto;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th,
+td {
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+th {
+    background: #4caf50;
+    color: white;
+}
+
+.rank {
+    font-weight: bold;
+    font-size: 18px;
+}
