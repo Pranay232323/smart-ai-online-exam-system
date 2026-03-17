@@ -296,7 +296,25 @@ def monitor_exams():
 
     return render_template("monitor.html", activity=activity)
 
+#------Student Performance Analytics------
+@app.route("/student_performance")
+def student_performance():
 
+    sql = """
+    SELECT users.name,
+           exams.title,
+           results.score,
+           results.total_questions
+    FROM results
+    JOIN users ON users.id = results.student_id
+    JOIN exams ON exams.id = results.exam_id
+    ORDER BY users.name
+    """
+
+    cursor.execute(sql)
+    performance = cursor.fetchall()
+
+    return render_template("student_performance.html", performance=performance)
 
 if __name__ == "__main__":
     app.run(debug=True)

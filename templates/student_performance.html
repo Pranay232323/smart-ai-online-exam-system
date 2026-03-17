@@ -49,3 +49,12 @@ color:white;
 {% for row in performance %}
 
 <tr>
+<td>{{ row[0] }}</td>
+<td>{{ row[1] }}</td>
+<td>{{ row[2] }} / {{ row[3] }}</td>
+<td>{{ ((row[2]/row[3])*100)|round(2) }}%</td>
+</tr>
+
+{% endfor %}
+
+</table>
