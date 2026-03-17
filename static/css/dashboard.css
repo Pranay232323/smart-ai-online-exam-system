@@ -185,6 +185,62 @@ body {
     border: 1px dashed var(--border);
 }
 
+.rules-trigger {
+    display: inline-block;
+}
+
+.rules-popup {
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 28, 43, 0.58);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1200;
+}
+
+.rules-popup.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.rules-card {
+    width: min(620px, 100%);
+    background: white;
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: 0 30px 60px rgba(20, 49, 77, 0.22);
+}
+
+.rules-card h2 {
+    margin: 0 0 10px;
+}
+
+.rules-card p {
+    margin: 0 0 18px;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.rules-list {
+    margin: 0;
+    padding-left: 20px;
+    line-height: 1.8;
+    color: var(--text);
+}
+
+.rules-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+}
+
 .chat-launcher {
     position: fixed;
     left: 22px;
@@ -378,7 +434,9 @@ body {
 
     .chat-input-row button,
     .hero-actions a,
-    .exam-card a {
+    .exam-card a,
+    .rules-actions a,
+    .rules-actions button {
         width: 100%;
         text-align: center;
     }

@@ -1,6 +1,10 @@
 const chatPopup = document.getElementById("chatPopup");
 const chatBox = document.getElementById("chatBox");
 const chatInput = document.getElementById("chatInput");
+const rulesPopup = document.getElementById("rulesPopup");
+const confirmStartExam = document.getElementById("confirmStartExam");
+const rulesExamTitle = document.getElementById("rulesExamTitle");
+const rulesTriggers = document.querySelectorAll(".rules-trigger");
 
 function toggleChat(openState) {
     const shouldOpen =
@@ -74,3 +78,32 @@ document.addEventListener("keydown", function (event) {
         toggleChat(false);
     }
 });
+
+function openRulesPopup(examId, examTitle) {
+    confirmStartExam.href = "/start-exam/" + examId;
+    rulesExamTitle.textContent =
+        'You are about to start "' +
+        examTitle +
+        '". Please read these instructions carefully before continuing.';
+    rulesPopup.classList.add("open");
+    rulesPopup.setAttribute("aria-hidden", "false");
+}
+
+function closeRulesPopup() {
+    rulesPopup.classList.remove("open");
+    rulesPopup.setAttribute("aria-hidden", "true");
+}
+
+rulesTriggers.forEach(function (button) {
+    button.addEventListener("click", function () {
+        openRulesPopup(button.dataset.examId, button.dataset.examTitle);
+    });
+});
+
+document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && rulesPopup.classList.contains("open")) {
+        closeRulesPopup();
+    }
+});
+
+window.closeRulesPopup = closeRulesPopup;

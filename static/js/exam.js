@@ -6,6 +6,7 @@ let answers = {};
 let visited = {};
 let examSubmitting = false;
 let violations = 0;
+let violationDetected = false;
 let time = Number(examApp.dataset.examDuration) * 60;
 
 function notifyExamEvent(status, incrementWarning = false) {
@@ -124,6 +125,14 @@ function closePopup() {
     document.getElementById("popupOverlay").style.display = "none";
 }
 
+function showViolationPopup() {
+    document.getElementById("violationOverlay").style.display = "flex";
+}
+
+function confirmViolationSubmit() {
+    submitExam("Auto Submitted");
+}
+
 function submitExam(status = "Submitted") {
     if (examSubmitting) {
         return;
@@ -175,12 +184,12 @@ function showWarning(txt) {
 document.addEventListener("visibilitychange", function () {
     if (document.hidden && !examSubmitting) {
         violations++;
+        violationDetected = true;
         showWarning("Tab switching detected " + violations + "/1");
         notifyExamEvent("Warning Issued", true);
-
-        if (violations >= 1) {
-            submitExam("Auto Submitted");
-        }
+    } else if (!document.hidden && violationDetected && !examSubmitting) {
+        showViolationPopup();
+        violationDetected = false;
     }
 });
 
@@ -216,3 +225,4 @@ window.saveAnswer = saveAnswer;
 window.showPopup = showPopup;
 window.closePopup = closePopup;
 window.submitExam = submitExam;
+window.confirmViolationSubmit = confirmViolationSubmit;

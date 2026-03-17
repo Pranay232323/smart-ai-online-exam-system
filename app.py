@@ -1,19 +1,37 @@
-from flask import Flask, jsonify, redirect, render_template, request, session
+import os
+
+from flask import Flask, flash, jsonify, redirect, render_template, request, session
 import mysql.connector
+from werkzeug.security import check_password_hash, generate_password_hash
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+
+if load_dotenv:
+    load_dotenv()
+
+
+def require_env(name):
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
 
 app = Flask(__name__)
-app.secret_key = "smart-ai-online-exam-system-secret-key"
+app.secret_key = require_env("SECRET_KEY")
 
-# MySQL connection
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "@Pranay23",
-    "database": "exam_system",
+    "host": os.getenv("DB_HOST", "localhost"),
+    "user": os.getenv("DB_USER", "root"),
+    "password": require_env("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME", "exam_system"),
 }
 
 db = mysql.connector.connect(**DB_CONFIG)
-
 cursor = db.cursor()
 
 
@@ -23,6 +41,20 @@ def get_cursor():
 
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
+
+
+def is_hashed_password(password):
+    return password.startswith("pbkdf2:") or password.startswith("scrypt:")
+
+
+def verify_password(stored_password, plain_password):
+    if stored_password and is_hashed_password(stored_password):
+        return check_password_hash(stored_password, plain_password), False
+
+    if stored_password == plain_password:
+        return True, True
+
+    return False, False
 
 
 def get_current_user_id():
@@ -69,13 +101,16 @@ def get_student_chatbot_context(student_id):
         "top_score_percentage": None,
     }
 
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
+
     try:
-        cursor.execute("SELECT title FROM exams ORDER BY id DESC")
-        exams = cursor.fetchall()
+        local_cursor.execute("SELECT title FROM exams ORDER BY id DESC")
+        exams = local_cursor.fetchall()
         context["exam_titles"] = [row[0] for row in exams]
         context["exam_count"] = len(exams)
 
-        cursor.execute(
+        local_cursor.execute(
             """
             SELECT exams.title, results.score, results.total_questions
             FROM results
@@ -86,15 +121,15 @@ def get_student_chatbot_context(student_id):
             """,
             (student_id,),
         )
-        context["latest_result"] = cursor.fetchone()
+        context["latest_result"] = local_cursor.fetchone()
 
-        cursor.execute(
+        local_cursor.execute(
             "SELECT COUNT(*) FROM results WHERE student_id = %s",
             (student_id,),
         )
-        context["attempt_count"] = cursor.fetchone()[0]
+        context["attempt_count"] = local_cursor.fetchone()[0]
 
-        cursor.execute(
+        local_cursor.execute(
             """
             SELECT MAX((score / total_questions) * 100)
             FROM results
@@ -102,12 +137,15 @@ def get_student_chatbot_context(student_id):
             """,
             (student_id,),
         )
-        top_score = cursor.fetchone()[0]
+        top_score = local_cursor.fetchone()[0]
         context["top_score_percentage"] = (
             float(top_score) if top_score is not None else None
         )
     except mysql.connector.Error:
         pass
+    finally:
+        local_cursor.close()
+        local_db.close()
 
     return context
 
@@ -339,43 +377,155 @@ def register():
     return render_template("register.html")
 
 
+@app.route("/forgot-password")
+def forgot_password():
+    return render_template("forgot_password.html")
+
+
+@app.route("/forgot-password-request", methods=["POST"])
+def forgot_password_request():
+    email = request.form["email"].strip().lower()
+
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
+
+    try:
+        local_cursor.execute("SELECT id, email FROM users WHERE email = %s", (email,))
+        user = local_cursor.fetchone()
+
+        if not user:
+            flash("No account was found with that email address.", "error")
+            return render_template("forgot_password.html", form_data={"email": email})
+
+        session["password_reset_email"] = user[1]
+        flash("Email verified. Please set your new password.", "success")
+        return redirect("/reset-password")
+    finally:
+        local_cursor.close()
+        local_db.close()
+
+
+@app.route("/reset-password")
+def reset_password():
+    reset_email = session.get("password_reset_email")
+    if not reset_email:
+        flash("Please verify your email first.", "error")
+        return redirect("/forgot-password")
+
+    return render_template("reset_password.html", reset_email=reset_email)
+
+
+@app.route("/reset-password-save", methods=["POST"])
+def reset_password_save():
+    reset_email = session.get("password_reset_email")
+    if not reset_email:
+        flash("Please verify your email first.", "error")
+        return redirect("/forgot-password")
+
+    password = request.form["password"]
+    confirm_password = request.form["confirm_password"]
+
+    if len(password) < 6:
+        flash("Password must be at least 6 characters long.", "error")
+        return render_template("reset_password.html", reset_email=reset_email)
+
+    if password != confirm_password:
+        flash("Password and confirm password do not match.", "error")
+        return render_template("reset_password.html", reset_email=reset_email)
+
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
+
+    try:
+        local_cursor.execute(
+            "UPDATE users SET password = %s WHERE email = %s",
+            (generate_password_hash(password), reset_email),
+        )
+        local_db.commit()
+    finally:
+        local_cursor.close()
+        local_db.close()
+
+    session.pop("password_reset_email", None)
+    flash("Password reset successful. Please log in with your new password.", "success")
+    return redirect("/")
+
+
 @app.route("/register-user", methods=["POST"])
 def register_user():
-    name = request.form["name"]
-    email = request.form["email"]
+    name = request.form["name"].strip()
+    email = request.form["email"].strip().lower()
     password = request.form["password"]
 
-    sql = "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s)"
-    values = (name, email, password, "student")
+    if len(password) < 6:
+        flash("Password must be at least 6 characters long.", "error")
+        return render_template("register.html", form_data={"name": name, "email": email})
 
-    cursor.execute(sql, values)
-    db.commit()
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
 
-    return redirect("/")
+    try:
+        local_cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+        existing_user = local_cursor.fetchone()
+        if existing_user:
+            flash("An account with this email already exists.", "error")
+            return render_template(
+                "register.html", form_data={"name": name, "email": email}
+            )
+
+        hashed_password = generate_password_hash(password)
+        local_cursor.execute(
+            "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s)",
+            (name, email, hashed_password, "student"),
+        )
+        local_db.commit()
+        flash("Registration successful. Please log in.", "success")
+        return redirect("/")
+    finally:
+        local_cursor.close()
+        local_db.close()
 
 
 @app.route("/login-user", methods=["POST"])
 def login_user():
-    email = request.form["email"]
+    email = request.form["email"].strip().lower()
     password = request.form["password"]
 
-    sql = "SELECT * FROM users WHERE email=%s AND password=%s"
-    values = (email, password)
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
 
-    cursor.execute(sql, values)
-    user = cursor.fetchone()
+    try:
+        local_cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
+        user = local_cursor.fetchone()
 
-    if not user:
-        return "Invalid email or password"
+        if not user:
+            flash("Invalid email or password.", "error")
+            return render_template("login.html", form_data={"email": email})
 
-    session["user_id"] = user[0]
-    session["user_name"] = user[1]
-    session["user_email"] = user[2]
-    session["user_role"] = user[4]
+        password_is_valid, should_upgrade = verify_password(user[3], password)
+        if not password_is_valid:
+            flash("Invalid email or password.", "error")
+            return render_template("login.html", form_data={"email": email})
 
-    if user[4] == "admin":
-        return redirect("/admin-dashboard")
-    return redirect("/dashboard")
+        if should_upgrade:
+            upgraded_password = generate_password_hash(password)
+            local_cursor.execute(
+                "UPDATE users SET password = %s WHERE id = %s",
+                (upgraded_password, user[0]),
+            )
+            local_db.commit()
+
+        session["user_id"] = user[0]
+        session["user_name"] = user[1]
+        session["user_email"] = user[2]
+        session["user_role"] = user[4]
+
+        if user[4] == "admin":
+            return redirect("/admin-dashboard")
+        return redirect("/dashboard")
+    finally:
+        local_cursor.close()
+        local_db.close()
 
 
 @app.route("/logout")
@@ -390,8 +540,12 @@ def dashboard():
     if redirect_response:
         return redirect_response
 
-    cursor.execute("SELECT * FROM exams")
-    exams = cursor.fetchall()
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
+    local_cursor.execute("SELECT * FROM exams")
+    exams = local_cursor.fetchall()
+    local_cursor.close()
+    local_db.close()
 
     return render_template(
         "dashboard.html",
@@ -444,10 +598,10 @@ def save_exam():
     description = request.form["description"]
     duration = request.form["duration"]
 
-    sql = "INSERT INTO exams (title, description, duration) VALUES (%s,%s,%s)"
-    values = (title, description, duration)
-
-    cursor.execute(sql, values)
+    cursor.execute(
+        "INSERT INTO exams (title, description, duration) VALUES (%s,%s,%s)",
+        (title, description, duration),
+    )
     db.commit()
 
     return redirect("/admin-dashboard")
@@ -476,14 +630,13 @@ def save_question():
     option_d = request.form["option_d"]
     correct_answer = request.form["correct_answer"]
 
-    sql = """
-    INSERT INTO questions (exam_id, question, option_a, option_b, option_c, option_d, correct_answer)
-    VALUES (%s,%s,%s,%s,%s,%s,%s)
-    """
-
-    values = (exam_id, question, option_a, option_b, option_c, option_d, correct_answer)
-
-    cursor.execute(sql, values)
+    cursor.execute(
+        """
+        INSERT INTO questions (exam_id, question, option_a, option_b, option_c, option_d, correct_answer)
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """,
+        (exam_id, question, option_a, option_b, option_c, option_d, correct_answer),
+    )
     db.commit()
 
     return redirect("/admin-dashboard")
@@ -616,16 +769,21 @@ def exam_history():
     if redirect_response:
         return redirect_response
 
-    sql = """
-    SELECT exams.title, results.score, results.total_questions
-    FROM results
-    JOIN exams ON exams.id = results.exam_id
-    WHERE results.student_id = %s
-    ORDER BY results.id DESC
-    """
-
-    cursor.execute(sql, (get_current_user_id(),))
-    history = cursor.fetchall()
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
+    local_cursor.execute(
+        """
+        SELECT exams.title, results.score, results.total_questions
+        FROM results
+        JOIN exams ON exams.id = results.exam_id
+        WHERE results.student_id = %s
+        ORDER BY results.id DESC
+        """,
+        (get_current_user_id(),),
+    )
+    history = local_cursor.fetchall()
+    local_cursor.close()
+    local_db.close()
 
     return render_template("exam_history.html", history=history)
 
@@ -636,20 +794,24 @@ def leaderboard():
     if redirect_response:
         return redirect_response
 
-    sql = """
-    SELECT users.name,
-           results.score,
-           results.total_questions,
-           exams.title
-    FROM results
-    JOIN users ON users.id = results.student_id
-    JOIN exams ON exams.id = results.exam_id
-    ORDER BY (results.score / results.total_questions) DESC, results.score DESC
-    LIMIT 10
-    """
-
-    cursor.execute(sql)
-    leaderboard_data = cursor.fetchall()
+    local_db = get_db_connection()
+    local_cursor = local_db.cursor(buffered=True)
+    local_cursor.execute(
+        """
+        SELECT users.name,
+               results.score,
+               results.total_questions,
+               exams.title
+        FROM results
+        JOIN users ON users.id = results.student_id
+        JOIN exams ON exams.id = results.exam_id
+        ORDER BY (results.score / results.total_questions) DESC, results.score DESC
+        LIMIT 10
+        """
+    )
+    leaderboard_data = local_cursor.fetchall()
+    local_cursor.close()
+    local_db.close()
 
     return render_template("leaderboard.html", leaderboard=leaderboard_data)
 
@@ -717,15 +879,15 @@ def monitor_exams():
     if redirect_response:
         return redirect_response
 
-    sql = """
-    SELECT users.name, exams.title, exam_activity.status, exam_activity.warning_count
-    FROM exam_activity
-    JOIN users ON users.id = exam_activity.student_id
-    JOIN exams ON exams.id = exam_activity.exam_id
-    ORDER BY exam_activity.id DESC
-    """
-
-    cursor.execute(sql)
+    cursor.execute(
+        """
+        SELECT users.name, exams.title, exam_activity.status, exam_activity.warning_count
+        FROM exam_activity
+        JOIN users ON users.id = exam_activity.student_id
+        JOIN exams ON exams.id = exam_activity.exam_id
+        ORDER BY exam_activity.id DESC
+        """
+    )
     activity = cursor.fetchall()
 
     return render_template("monitor.html", activity=activity)
@@ -737,18 +899,18 @@ def student_performance():
     if redirect_response:
         return redirect_response
 
-    sql = """
-    SELECT users.name,
-           exams.title,
-           results.score,
-           results.total_questions
-    FROM results
-    JOIN users ON users.id = results.student_id
-    JOIN exams ON exams.id = results.exam_id
-    ORDER BY users.name
-    """
-
-    cursor.execute(sql)
+    cursor.execute(
+        """
+        SELECT users.name,
+               exams.title,
+               results.score,
+               results.total_questions
+        FROM results
+        JOIN users ON users.id = results.student_id
+        JOIN exams ON exams.id = results.exam_id
+        ORDER BY users.name
+        """
+    )
     performance = cursor.fetchall()
 
     return render_template("student_performance.html", performance=performance)
@@ -760,17 +922,17 @@ def performance_chart():
     if redirect_response:
         return redirect_response
 
-    sql = """
-    SELECT users.name,
-           AVG((results.score / results.total_questions) * 100) AS percentage
-    FROM results
-    JOIN users ON users.id = results.student_id
-    WHERE results.total_questions > 0
-    GROUP BY users.id, users.name
-    ORDER BY users.name
-    """
-
-    cursor.execute(sql)
+    cursor.execute(
+        """
+        SELECT users.name,
+               AVG((results.score / results.total_questions) * 100) AS percentage
+        FROM results
+        JOIN users ON users.id = results.student_id
+        WHERE results.total_questions > 0
+        GROUP BY users.id, users.name
+        ORDER BY users.name
+        """
+    )
     data = cursor.fetchall()
 
     names = [row[0] for row in data]

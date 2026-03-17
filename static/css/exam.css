@@ -54,11 +54,32 @@ button:hover {
     align-items: center;
 }
 
+#violationOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1100;
+}
+
 #popupBox {
     background: white;
     padding: 25px;
     border-radius: 10px;
     text-align: center;
+}
+
+#violationBox {
+    background: white;
+    padding: 28px;
+    border-radius: 12px;
+    text-align: center;
+    width: min(520px, calc(100% - 30px));
 }
 
 input[type="radio"] {
