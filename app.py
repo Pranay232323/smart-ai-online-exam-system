@@ -5,28 +5,32 @@ app = Flask(__name__)
 
 # MySQL connection
 db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="@Pranay23",
-    database="exam_system"
+    host="localhost", user="root", password="@Pranay23", database="exam_system"
 )
 
 cursor = db.cursor()
 
+
 @app.route("/")
 def home():
     return render_template("login.html")
+
 
 @app.route("/test-db")
 def test_db():
     cursor.execute("SELECT * FROM users")
     result = cursor.fetchall()
     return str(result)
+
+
 # ------Register Page-------
 @app.route("/register")
 def register():
     return render_template("register.html")
-#------Save user to database------
+
+
+# ------Save user to database------
+
 
 @app.route("/register-user", methods=["POST"])
 def register_user():
@@ -41,7 +45,9 @@ def register_user():
     db.commit()
 
     return redirect("/")
-#------login------
+
+
+# ------login------
 @app.route("/login-user", methods=["POST"])
 def login_user():
 
@@ -58,8 +64,9 @@ def login_user():
         return redirect("/dashboard")
     else:
         return "Invalid email or password"
-    
-#------Dashboard------
+
+
+# ------Dashboard------
 @app.route("/dashboard")
 def dashboard():
 
@@ -68,17 +75,20 @@ def dashboard():
 
     return render_template("dashboard.html", exams=exams)
 
-#------admin dashboard------
+
+# ------admin dashboard------
 @app.route("/admin-dashboard")
 def admin_dashboard():
     return render_template("admin_dashboard.html")
 
-#------create exam------
+
+# ------create exam------
 @app.route("/create-exam")
 def create_exam():
     return render_template("create_exam.html")
 
-#------save exam------
+
+# ------save exam------
 @app.route("/save-exam", methods=["POST"])
 def save_exam():
 
@@ -94,12 +104,14 @@ def save_exam():
 
     return "Exam Created Successfully"
 
-#------add question------
+
+# ------add question------
 @app.route("/add-question")
 def add_question():
     return render_template("add_questions.html")
 
-#------save question------
+
+# ------save question------
 @app.route("/save-question", methods=["POST"])
 def save_question():
     exam_id = request.form["exam_id"]
@@ -122,7 +134,9 @@ def save_question():
 
     return "Question Added Successfully"
 
-#------Start exam------
+
+# ------Start exam------
+
 
 @app.route("/start-exam/<int:exam_id>")
 def start_exam(exam_id):
@@ -136,13 +150,12 @@ def start_exam(exam_id):
     duration = exam[0]
 
     return render_template(
-        "exam.html",
-        questions=questions,
-        exam_id=exam_id,
-        exam_duration=duration
+        "exam.html", questions=questions, exam_id=exam_id, exam_duration=duration
     )
 
-#------submit exam------
+
+# ------submit exam------
+
 
 @app.route("/submit-exam", methods=["POST"])
 def submit_exam():
@@ -162,7 +175,6 @@ def submit_exam():
         correct_answer = q[7]
 
         student_answer = request.form.get(f"q{qid}")
-        
 
         student_answers[qid] = student_answer
 
@@ -186,12 +198,7 @@ def submit_exam():
     VALUES (%s,%s,%s,%s,%s)
    """
 
-    cursor.execute(sql, (
-    student_id,
-    exam_id,
-    qid,
-    student_answer,
-    correct_answer))
+    cursor.execute(sql, (student_id, exam_id, qid, student_answer, correct_answer))
     db.commit()
 
     return render_template(
@@ -200,13 +207,15 @@ def submit_exam():
         total=total_questions,
         percentage=percentage,
         questions=questions,
-        student_answers=student_answers
+        student_answers=student_answers,
     )
-#------Student Exam History------
+
+
+# ------Student Exam History------
 @app.route("/exam-history")
 def exam_history():
 
-    student_id = 2   # later this will come from login session
+    student_id = 2  # later this will come from login session
 
     sql = """
     SELECT exams.title, results.score, results.total_questions
@@ -220,7 +229,9 @@ def exam_history():
     history = cursor.fetchall()
 
     return render_template("exam_history.html", history=history)
-#------Leaderboard------
+
+
+# ------Leaderboard------
 @app.route("/leaderboard")
 def leaderboard():
 
@@ -241,7 +252,8 @@ def leaderboard():
 
     return render_template("leaderboard.html", leaderboard=leaderboard_data)
 
-#------Admin Analytics Dashboard------
+
+# ------Admin Analytics Dashboard------
 @app.route("/admin-analytics")
 def admin_analytics():
 
@@ -262,13 +274,15 @@ def admin_analytics():
     avg_score = cursor.fetchone()[0]
 
     # Top Performer
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT users.name, (results.score/results.total_questions*100) AS percentage
         FROM results
         JOIN users ON users.id = results.student_id
         ORDER BY percentage DESC
         LIMIT 1
-    """)
+    """
+    )
     top_student = cursor.fetchone()
 
     return render_template(
@@ -277,9 +291,11 @@ def admin_analytics():
         total_exams=total_exams,
         total_attempts=total_attempts,
         avg_score=avg_score,
-        top_student=top_student
+        top_student=top_student,
     )
-#------monitor------
+
+
+# ------monitor------
 @app.route("/monitor-exams")
 def monitor_exams():
 
@@ -296,7 +312,8 @@ def monitor_exams():
 
     return render_template("monitor.html", activity=activity)
 
-#------Student Performance Analytics------
+
+# ------Student Performance Analytics------
 @app.route("/student_performance")
 def student_performance():
 
@@ -316,6 +333,27 @@ def student_performance():
 
     return render_template("student_performance.html", performance=performance)
 
+
+# ------Performance Chart------
+@app.route("/performance-chart")
+def performance_chart():
+
+    sql = """
+    SELECT users.name,
+           AVG(results.score/results.total_questions*100) AS percentage
+    FROM results
+    JOIN users ON users.id = results.student_id
+    GROUP BY users.id
+    """
+
+    cursor.execute(sql)
+    data = cursor.fetchall()
+
+    names = [row[0] for row in data]
+    scores = [float(row[1]) for row in data]
+
+    return render_template("performance_chart.html", names=names, scores=scores)
+
+
 if __name__ == "__main__":
     app.run(debug=True)
-
