@@ -1,35 +1,576 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard</title>
+    <style>
+        :root {
+            --page-bg: #eef4fb;
+            --card: #ffffff;
+            --text: #17324d;
+            --muted: #5f7287;
+            --primary: #0f766e;
+            --primary-dark: #0b5f58;
+            --accent: #d7f3ef;
+            --border: #d8e3ee;
+            --student-bubble: #e7f2ff;
+            --bot-bubble: #eef9f0;
+            --shadow: 0 18px 45px rgba(20, 49, 77, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background:
+                radial-gradient(circle at top right, #d7f3ef 0, transparent 24%),
+                linear-gradient(180deg, #f8fbff 0%, var(--page-bg) 100%);
+            color: var(--text);
+        }
+
+        .page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 20px 110px;
+        }
+
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            gap: 24px;
+            align-items: center;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: var(--shadow);
+        }
+
+        .hero h1 {
+            margin: 0 0 10px;
+            font-size: 34px;
+        }
+
+        .hero p {
+            margin: 0;
+            max-width: 640px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .hero-actions a,
+        .exam-card a,
+        .chat-launcher,
+        .quick-prompts button,
+        .chat-input-row button,
+        .chat-close {
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.2s ease;
+            font-size: 15px;
+        }
+
+        .outline-btn,
+        .primary-btn {
+            padding: 12px 18px;
+            border-radius: 12px;
+        }
+
+        .outline-btn {
+            color: var(--text);
+            border: 1px solid var(--border);
+            background: transparent;
+        }
+
+        .outline-btn:hover {
+            background: #f7fafc;
+            border-color: #b4c6d8;
+        }
+
+        .primary-btn {
+            color: white;
+            background: var(--primary);
+        }
+
+        .primary-btn:hover,
+        .chat-input-row button:hover,
+        .chat-launcher:hover {
+            background: var(--primary-dark);
+        }
+
+        .content-card {
+            margin-top: 24px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .section-head h2 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+        .section-head p {
+            margin: 6px 0 0;
+            color: var(--muted);
+        }
+
+        .assist-note {
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: var(--accent);
+            color: var(--primary-dark);
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .exam-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .exam-card {
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
+        }
+
+        .exam-card h3 {
+            margin: 0 0 8px;
+            font-size: 20px;
+        }
+
+        .exam-card p {
+            margin: 0 0 14px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .exam-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .chip {
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--accent);
+            color: var(--primary-dark);
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .empty-state {
+            padding: 18px;
+            border-radius: 16px;
+            background: #f8fbff;
+            color: var(--muted);
+            border: 1px dashed var(--border);
+        }
+
+        .chat-launcher {
+            position: fixed;
+            left: 22px;
+            bottom: 22px;
+            width: 66px;
+            height: 66px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 18px 35px rgba(15, 118, 110, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            z-index: 1000;
+        }
+
+        .chat-popup {
+            position: fixed;
+            left: 22px;
+            bottom: 100px;
+            width: min(380px, calc(100vw - 28px));
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            box-shadow: 0 22px 50px rgba(20, 49, 77, 0.18);
+            overflow: hidden;
+            z-index: 1001;
+            transform: translateY(20px) scale(0.96);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .chat-popup.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 18px;
+            background: linear-gradient(135deg, #0f766e 0%, #146b8e 100%);
+            color: white;
+        }
+
+        .chat-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .chat-header p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .chat-close {
+            background: rgba(255, 255, 255, 0.16);
+            color: white;
+            border-radius: 10px;
+            padding: 8px 10px;
+        }
+
+        .chat-body {
+            padding: 16px;
+        }
+
+        .chat-box {
+            height: 320px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px;
+            background: #fbfdff;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            max-width: 88%;
+            padding: 12px 14px;
+            border-radius: 16px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .message.student {
+            align-self: flex-end;
+            background: var(--student-bubble);
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background: var(--bot-bubble);
+        }
+
+        .quick-prompts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 14px 0;
+        }
+
+        .quick-prompts button {
+            padding: 9px 11px;
+            border-radius: 999px;
+            background: #f6faf8;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .quick-prompts button:hover {
+            background: #eef7ea;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-row input {
+            flex: 1;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 13px 14px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .chat-input-row input:focus {
+            border-color: #7ebeb5;
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+        }
+
+        .chat-input-row button {
+            background: var(--primary);
+            color: white;
+            border-radius: 14px;
+            padding: 13px 16px;
+        }
+
+        .helper-text {
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 700px) {
+            .page {
+                padding: 20px 14px 110px;
+            }
+
+            .hero,
+            .content-card {
+                padding: 18px;
+                border-radius: 18px;
+            }
+
+            .hero {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .section-head {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .chat-popup {
+                left: 14px;
+                right: 14px;
+                bottom: 92px;
+                width: auto;
+            }
+
+            .chat-launcher {
+                left: 14px;
+                bottom: 14px;
+            }
+
+            .chat-input-row {
+                flex-direction: column;
+            }
+
+            .chat-input-row button,
+            .hero-actions a,
+            .exam-card a {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 
 <body>
+    <div class="page">
+        <section class="hero">
+            <div>
+                <h1>Student Dashboard</h1>
+                <p>
+                    Welcome, {{ student_name }}.
+                    <br>
+                    View your available exams, check your history, and use the help chatbot any time from the
+                    floating button in the bottom-left corner.
+                </p>
+            </div>
+            <div class="hero-actions">
+                <a class="outline-btn" href="/exam-history">My Exam History</a>
+                <a class="outline-btn" href="/leaderboard">Leaderboard</a>
+                <a class="primary-btn" href="/logout">Logout</a>
+            </div>
+        </section>
 
-    <h1>Student Dashboard</h1>
+        <section class="content-card">
+            <div class="section-head">
+                <div>
+                    <h2>Available Exams</h2>
+                    <p>Select an exam and start when you are ready.</p>
+                </div>
+                <div class="assist-note">Need help? Open the chat button below.</div>
+            </div>
 
-    <h3>Available Exams</h3>
+            <div class="exam-list">
+                {% if exams %}
+                {% for exam in exams %}
+                <article class="exam-card">
+                    <h3>{{ exam[1] }}</h3>
+                    <p>{{ exam[2] if exam[2] else "No description has been added for this exam yet." }}</p>
+                    <div class="exam-meta">
+                        <span class="chip">Exam ID: {{ exam[0] }}</span>
+                        <span class="chip">Duration: {{ exam[3] }} mins</span>
+                    </div>
+                    <a class="primary-btn" href="/start-exam/{{ exam[0] }}">Start Exam</a>
+                </article>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    No exams are available right now. Please check back later.
+                </div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
 
-    <ul>
-        {% for exam in exams %}
-        <li>
-            {{ exam[1] }}
-            <a href="/start-exam/{{ exam[0] }}">Start Exam</a>
-        </li>
-        {% endfor %}
-    </ul>
+    <button
+        type="button"
+        class="chat-launcher"
+        id="chatLauncher"
+        aria-label="Open student help chatbot"
+        onclick="toggleChat(true)"
+    >
+        ?
+    </button>
 
-    <br>
-    
-    </a>
-    <a href="/exam-history">
-        <button>My Exam History</button>
-    </a>
-    <a href="/leaderboard">
-        <button>Leaderboard</button>
-    <a href="/">Logout</a>
+    <section class="chat-popup" id="chatPopup" aria-hidden="true">
+        <div class="chat-header">
+            <div>
+                <h3>Student Help Chatbot</h3>
+                <p>Ask about exams, results, history, leaderboard, and dashboard usage.</p>
+            </div>
+            <button type="button" class="chat-close" onclick="toggleChat(false)">Close</button>
+        </div>
 
+        <div class="chat-body">
+            <div class="chat-box" id="chatBox">
+                <div class="message bot">
+                    Hello! I can answer basic questions and also share live details like your latest result,
+                    total attempts, best score, and current available exams.
+                </div>
+            </div>
+
+            <div class="quick-prompts">
+                <button type="button" onclick="sendPrompt('How many exams are available?')">Available exams</button>
+                <button type="button" onclick="sendPrompt('What is my latest result?')">Latest result</button>
+                <button type="button" onclick="sendPrompt('How many attempts do I have?')">My attempts</button>
+                <button type="button" onclick="sendPrompt('What is my best score?')">Best score</button>
+            </div>
+
+            <div class="chat-input-row">
+                <input
+                    id="chatInput"
+                    type="text"
+                    placeholder="Type your question here..."
+                    autocomplete="off"
+                >
+                <button type="button" onclick="sendMessage()">Send</button>
+            </div>
+
+            <p class="helper-text">
+                This chatbot is designed for basic website guidance and quick student dashboard questions.
+            </p>
+        </div>
+    </section>
+
+    <script>
+        const chatPopup = document.getElementById("chatPopup");
+        const chatBox = document.getElementById("chatBox");
+        const chatInput = document.getElementById("chatInput");
+
+        function toggleChat(openState) {
+            const shouldOpen = typeof openState === "boolean"
+                ? openState
+                : !chatPopup.classList.contains("open");
+
+            chatPopup.classList.toggle("open", shouldOpen);
+            chatPopup.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
+
+            if (shouldOpen) {
+                chatInput.focus();
+            }
+        }
+
+        function appendMessage(text, sender) {
+            const message = document.createElement("div");
+            message.className = "message " + sender;
+            message.textContent = text;
+            chatBox.appendChild(message);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function askChatbot(message) {
+            const response = await fetch("/student-chatbot", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await response.json();
+            appendMessage(data.reply, "bot");
+        }
+
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+
+            if (!message) {
+                return;
+            }
+
+            toggleChat(true);
+            appendMessage(message, "student");
+            chatInput.value = "";
+
+            try {
+                await askChatbot(message);
+            } catch (error) {
+                appendMessage(
+                    "I could not reach the help service right now. Please try again in a moment.",
+                    "bot"
+                );
+            }
+        }
+
+        function sendPrompt(message) {
+            chatInput.value = message;
+            sendMessage();
+        }
+
+        chatInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && chatPopup.classList.contains("open")) {
+                toggleChat(false);
+            }
+        });
+    </script>
 </body>
 
 </html>

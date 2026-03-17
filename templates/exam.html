@@ -6,7 +6,7 @@
 
     <style>
         body {
-            font-family: Arial;
+            font-family: Arial, sans-serif;
         }
 
         #palette span {
@@ -14,13 +14,20 @@
             cursor: pointer;
             font-weight: bold;
             font-size: 18px;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        #palette span:hover {
+            color: white;
+            background: #007bff;
         }
 
         button {
             padding: 8px 16px;
             margin: 10px;
             border: none;
-            background: #4CAF50;
+            background: #4caf50;
             color: white;
             border-radius: 5px;
             cursor: pointer;
@@ -61,8 +68,6 @@
             text-align: center;
         }
 
-        /* Option hover highlight */
-
         input[type="radio"] {
             cursor: pointer;
         }
@@ -81,28 +86,14 @@
             background: #eef5ff;
             border-radius: 4px;
         }
-
-        /* Palette hover */
-
-        #palette span {
-            cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 4px;
-        }
-
-        #palette span:hover {
-            color: white;
-            background: #007bff;
-        }
     </style>
 </head>
 
 <body>
 
     <h2>Online Exam</h2>
-
+    <p>Student: {{ student_name }}</p>
     <h3>Time Remaining: <span id="timer">30:00</span></h3>
-
     <h4 id="answerCount">Answered: 0</h4>
 
     <div id="question-box"></div>
@@ -120,47 +111,57 @@
 
     <form id="examForm" action="/submit-exam" method="POST">
         <input type="hidden" name="exam_id" value="{{ exam_id }}">
+        <input type="hidden" name="final_status" id="finalStatus" value="Submitted">
     </form>
+
     <div id="warningBox"></div>
 
     <div id="popupOverlay">
         <div id="popupBox">
             <h3>Submit Exam?</h3>
             <p>Are you sure you want to submit?</p>
-            <button onclick="submitExam()">Yes Submit</button>
+            <button onclick="submitExam('Submitted')">Yes Submit</button>
             <button onclick="closePopup()">Cancel</button>
         </div>
     </div>
 
     <h4>Status</h4>
-    <p style="color:green">● Answered</p>
-    <p style="color:orange">● Visited but unanswered</p>
-    <p style="color:black">● Not visited</p>
+    <p style="color:green">Answered</p>
+    <p style="color:orange">Visited but unanswered</p>
+    <p style="color:black">Not visited</p>
 
     <script>
-        if (performance.navigation.type === 1) {
-            window.location.href = "/dashboard";
-        }
+        const examId = "{{ exam_id }}";
         let questions = {{ questions | tojson }};
         let currentQuestion = 0;
-
         let answers = {};
         let visited = {};
-
         let examSubmitting = false;
+        let violations = 0;
+        let time = {{ exam_duration }} * 60;
 
-        /* ---------------- QUESTION LOAD ---------------- */
+        function notifyExamEvent(status, incrementWarning = false) {
+            const body = new URLSearchParams({
+                exam_id: examId,
+                status: status,
+                increment_warning: incrementWarning ? "true" : "false"
+            });
+
+            return fetch("/exam-event", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: body.toString()
+            }).catch(() => null);
+        }
 
         function loadQuestion() {
-
             visited[currentQuestion] = true;
 
             let q = questions[currentQuestion];
-
             let html = "<h3>Question " + (currentQuestion + 1) + " / " + questions.length + "</h3>";
-
             html += "<p>" + q[2] + "</p>";
-
             html += `<label class="option"><input type="radio" name="opt" value="A" onclick="saveAnswer('A')"> ${q[3]}</label><br>`;
             html += `<label class="option"><input type="radio" name="opt" value="B" onclick="saveAnswer('B')"> ${q[4]}</label><br>`;
             html += `<label class="option"><input type="radio" name="opt" value="C" onclick="saveAnswer('C')"> ${q[5]}</label><br>`;
@@ -169,184 +170,114 @@
             document.getElementById("question-box").innerHTML = html;
 
             let qid = q[0];
-
             if (answers[qid]) {
-
                 let radios = document.getElementsByName("opt");
-
                 for (let r of radios) {
-
-                    if (r.value === answers[qid]) r.checked = true;
-
+                    if (r.value === answers[qid]) {
+                        r.checked = true;
+                    }
                 }
-
             }
 
             updatePalette();
             updateCounter();
-
         }
 
-        /* ---------------- ANSWER SAVE ---------------- */
-
         function saveAnswer(opt) {
-
             let qid = questions[currentQuestion][0];
-
             answers[qid] = opt;
-
-            /* update counter immediately */
             updateCounter();
-
-            /* update palette colors */
             updatePalette();
-
         }
 
         function updateCounter() {
-
             let answered = Object.keys(answers).length;
-
             document.getElementById("answerCount").innerText =
                 "Answered: " + answered + " / " + questions.length;
-
         }
-        /* ---------------- NAVIGATION ---------------- */
 
         function nextQuestion() {
-
             if (currentQuestion < questions.length - 1) {
-
                 currentQuestion++;
                 loadQuestion();
-
             }
-
         }
 
         function prevQuestion() {
-
             if (currentQuestion > 0) {
-
                 currentQuestion--;
                 loadQuestion();
-
             }
-
         }
 
         function jumpQuestion(i) {
-
             currentQuestion = i;
             loadQuestion();
-
         }
 
-        /* ---------------- PALETTE ---------------- */
-
         function buildPalette() {
-
             let html = "<span onclick='prevQuestion()'><</span>";
 
             for (let i = 0; i < questions.length; i++) {
-
                 html += `<span id="p${i}" onclick="jumpQuestion(${i})">${i + 1}</span>`;
-
             }
 
             html += "<span onclick='nextQuestion()'>></span>";
-
             document.getElementById("palette").innerHTML = html;
-
         }
 
         function updatePalette() {
-
             for (let i = 0; i < questions.length; i++) {
-
                 let el = document.getElementById("p" + i);
-
-                if (!el) continue;
+                if (!el) {
+                    continue;
+                }
 
                 let qid = questions[i][0];
 
-                /* Answered question */
                 if (answers[qid]) {
-
                     el.style.color = "green";
-
-                    /* Visited but unanswered */
                 } else if (visited[i]) {
-
                     el.style.color = "orange";
-
-                    /* Not visited */
                 } else {
-
                     el.style.color = "black";
-
                 }
 
-                /* Current question highlight */
-
-                if (i === currentQuestion) {
-
-                    el.style.textDecoration = "underline";
-
-                } else {
-
-                    el.style.textDecoration = "none";
-
-                }
-
+                el.style.textDecoration = i === currentQuestion ? "underline" : "none";
             }
-
         }
 
-        /* ---------------- SUBMIT ---------------- */
-
         function showPopup() {
-
             document.getElementById("popupOverlay").style.display = "flex";
-
         }
 
         function closePopup() {
-
             document.getElementById("popupOverlay").style.display = "none";
-
         }
 
-        function submitExam(auto = false) {
+        function submitExam(status = "Submitted") {
+            if (examSubmitting) {
+                return;
+            }
 
             examSubmitting = true;
+            document.getElementById("finalStatus").value = status;
 
             let form = document.getElementById("examForm");
 
             for (let qid in answers) {
-
                 let input = document.createElement("input");
-
                 input.type = "hidden";
                 input.name = "q" + qid;
                 input.value = answers[qid];
-
                 form.appendChild(input);
-
             }
 
-            form.submit();
-
+            notifyExamEvent(status, false).finally(() => form.submit());
         }
 
-        /* ---------------- TIMER ---------------- */
-
-        let time = {{ exam_duration }} * 60;
-
         function startTimer() {
-
             setInterval(function () {
-
                 let m = Math.floor(time / 60);
                 let s = time % 60;
 
@@ -356,113 +287,57 @@
                 time--;
 
                 if (time <= 0) {
-
-                    submitExam(true);
-
+                    submitExam("Auto Submitted");
                 }
-
             }, 1000);
-
         }
 
-        /* ---------------- TAB SWITCH ---------------- */
-
-        let violations = 0;
-
-        document.addEventListener("visibilitychange", function () {
-
-            if (document.hidden && !examSubmitting) {
-
-                violations++;
-
-                showWarning("Tab switching detected " + violations + "/1");
-
-                if (violations >= 1) {
-
-                    submitExam(true);
-
-                }
-
-            }
-
-        });
-
-        /* ---------------- WARNING ---------------- */
-
         function showWarning(txt) {
-
             let box = document.getElementById("warningBox");
-
             box.innerText = txt;
-
             box.style.display = "block";
 
             setTimeout(() => {
-
                 box.style.display = "none";
-
             }, 3000);
-
         }
 
-        /* ---------------- BLOCK RELOAD ---------------- */
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden && !examSubmitting) {
+                violations++;
+                showWarning("Tab switching detected " + violations + "/1");
+                notifyExamEvent("Warning Issued", true);
 
-        document.addEventListener("keydown", function (e) {
-
-            if (e.key === "F5" || (e.ctrlKey && e.key === "r")) {
-
-                e.preventDefault();
-                showWarning("Reload disabled during exam");
-
+                if (violations >= 1) {
+                    submitExam("Auto Submitted");
+                }
             }
-
         });
 
-        /* ---------------- START PAGE ---------------- */
+        document.addEventListener("keydown", function (e) {
+            if (
+                e.key === "F5" ||
+                (e.ctrlKey && e.key.toLowerCase() === "r") ||
+                (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "r")
+            ) {
+                e.preventDefault();
+                e.stopPropagation();
+                showWarning("Reload disabled during exam");
+                notifyExamEvent("Warning Issued", true);
+                return false;
+            }
+        });
+
+        window.addEventListener("beforeunload", function (e) {
+            if (!examSubmitting) {
+                e.preventDefault();
+                e.returnValue = "You will leave the exam and go back to dashboard.";
+            }
+        });
 
         buildPalette();
         loadQuestion();
         startTimer();
-        /* -------- DISABLE RELOAD DURING EXAM -------- */
-
-        document.addEventListener("keydown", function (e) {
-
-            // F5
-            if (e.key === "F5") {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-
-            // Ctrl + R
-            if (e.ctrlKey && e.key.toLowerCase() === "r") {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-
-            // Ctrl + Shift + R
-            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "r") {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-
-        });
-        /* RELOAD WARNING */
-
-        window.addEventListener("beforeunload", function (e) {
-
-            if (!examSubmitting) {
-
-                e.preventDefault();
-
-                e.returnValue = "You will leave the exam and go back to dashboard.";
-
-            }
-
-        });
-
     </script>
 
 </body>

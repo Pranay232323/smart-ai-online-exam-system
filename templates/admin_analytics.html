@@ -2,73 +2,101 @@
 <html>
 
 <head>
+    <title>Admin Analytics</title>
 
-<title>Admin Analytics</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            text-align: center;
+            margin-top: 60px;
+        }
 
-<style>
+        .box {
+            background: white;
+            width: 800px;
+            max-width: calc(100% - 40px);
+            margin: auto;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
 
-body{
-font-family:Arial;
-background:#f4f4f4;
-text-align:center;
-margin-top:60px;
-}
+        .stat {
+            font-size: 20px;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
 
-.box{
-background:white;
-width:600px;
-margin:auto;
-padding:40px;
-border-radius:10px;
-box-shadow:0 0 10px rgba(0,0,0,0.2);
-}
+        h1 {
+            color: #4caf50;
+        }
 
-.stat{
-font-size:20px;
-margin:15px 0;
-padding:10px;
-background:#f9f9f9;
-border-radius:6px;
-}
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+        }
 
-h1{
-color:#4CAF50;
-}
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
 
-</style>
+        th {
+            background: #0f766e;
+            color: white;
+        }
+    </style>
 
 </head>
 
 <body>
 
-<div class="box">
+    <div class="box">
 
-<h1>Admin Analytics Dashboard</h1>
+        <h1>Admin Analytics Dashboard</h1>
 
-<div class="stat">Total Students: {{ total_students }}</div>
+        <div class="stat">Total Students: {{ total_students }}</div>
+        <div class="stat">Total Exams: {{ total_exams }}</div>
+        <div class="stat">Total Attempts: {{ total_attempts }}</div>
+        <div class="stat">
+            Average Score: {{ avg_score|round(2) if avg_score else 0 }}%
+        </div>
 
-<div class="stat">Total Exams: {{ total_exams }}</div>
+        <div class="stat">
+            Top Performer:
+            {% if top_student %}
+            {{ top_student[0] }} ({{ top_student[1]|round(2) }}%)
+            {% else %}
+            N/A
+            {% endif %}
+        </div>
 
-<div class="stat">Total Attempts: {{ total_attempts }}</div>
+        <h2>Student Breakdown</h2>
+        <table>
+            <tr>
+                <th>Student</th>
+                <th>Attempts</th>
+                <th>Average Percentage</th>
+            </tr>
+            {% for row in student_breakdown %}
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[2]|round(2) if row[2] is not none else 0 }}%</td>
+            </tr>
+            {% endfor %}
+        </table>
 
-<div class="stat">
-Average Score: {{ avg_score|round(2) if avg_score else 0 }}%
-</div>
+        <br>
 
-<div class="stat">
-Top Performer:
-{% if top_student %}
-{{ top_student[0] }} ({{ top_student[1]|round(2) }}%)
-{% else %}
-N/A
-{% endif %}
-</div>
+        <a href="/admin-dashboard">Back to Admin Panel</a>
 
-<br>
-
-<a href="/admin-dashboard">Back to Admin Panel</a>
-
-</div>
+    </div>
 
 </body>
 
