@@ -1,6 +1,19 @@
+import csv
+import io
 import os
+from datetime import datetime
+from functools import wraps
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, session
+from flask import (
+    Flask,
+    Response,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+)
 import mysql.connector
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -31,16 +44,52 @@ DB_CONFIG = {
     "database": os.getenv("DB_NAME", "exam_system"),
 }
 
-db = mysql.connector.connect(**DB_CONFIG)
-cursor = db.cursor()
-
-
-def get_cursor():
-    return db.cursor(buffered=True)
+WARNING_LIMIT = 3
 
 
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
+
+
+def get_cursor(connection, dictionary=False):
+    return connection.cursor(buffered=True, dictionary=dictionary)
+
+
+def fetch_all(query, params=(), dictionary=False):
+    connection = get_db_connection()
+    cursor = get_cursor(connection, dictionary=dictionary)
+    try:
+        cursor.execute(query, params)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def fetch_one(query, params=(), dictionary=False):
+    connection = get_db_connection()
+    cursor = get_cursor(connection, dictionary=dictionary)
+    try:
+        cursor.execute(query, params)
+        return cursor.fetchone()
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def execute_write(query, params=()):
+    connection = get_db_connection()
+    cursor = get_cursor(connection)
+    try:
+        cursor.execute(query, params)
+        connection.commit()
+        return cursor.lastrowid
+    except mysql.connector.Error:
+        connection.rollback()
+        raise
+    finally:
+        cursor.close()
+        connection.close()
 
 
 def is_hashed_password(password):
@@ -65,30 +114,91 @@ def get_current_user_role():
     return session.get("user_role")
 
 
-def require_login():
-    if not get_current_user_id():
-        return redirect("/")
-    return None
+def role_required(*allowed_roles):
+    def decorator(view):
+        @wraps(view)
+        def wrapped_view(*args, **kwargs):
+            if not get_current_user_id():
+                flash("Please log in to continue.", "error")
+                return redirect("/")
+
+            if get_current_user_role() not in allowed_roles:
+                flash("You do not have permission to access that page.", "error")
+                if get_current_user_role() == "admin":
+                    return redirect("/admin-dashboard")
+                return redirect("/dashboard")
+
+            return view(*args, **kwargs)
+
+        return wrapped_view
+
+    return decorator
 
 
-def require_student():
-    redirect_response = require_login()
-    if redirect_response:
-        return redirect_response
-
-    if get_current_user_role() != "student":
-        return redirect("/admin-dashboard")
-    return None
+def login_required(view):
+    return role_required("student", "admin")(view)
 
 
-def require_admin():
-    redirect_response = require_login()
-    if redirect_response:
-        return redirect_response
+def student_required(view):
+    return role_required("student")(view)
 
-    if get_current_user_role() != "admin":
-        return redirect("/dashboard")
-    return None
+
+def admin_required(view):
+    return role_required("admin")(view)
+
+
+def parse_datetime_local(value):
+    if not value:
+        return None
+    return datetime.strptime(value, "%Y-%m-%dT%H:%M")
+
+
+def format_datetime_local(value):
+    if not value:
+        return ""
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    return value.strftime("%Y-%m-%dT%H:%M")
+
+
+app.jinja_env.filters["datetime_local"] = format_datetime_local
+
+
+def exam_status_label(exam):
+    now = datetime.now()
+    start_time = exam.get("start_time")
+    end_time = exam.get("end_time")
+
+    if not exam.get("is_active", 1):
+        return "Inactive"
+    if start_time and now < start_time:
+        return "Upcoming"
+    if end_time and now > end_time:
+        return "Closed"
+    return "Live"
+
+
+def exam_schedule_text(exam):
+    parts = []
+    if exam.get("start_time"):
+        parts.append(f"Starts: {exam['start_time'].strftime('%d %b %Y, %I:%M %p')}")
+    if exam.get("end_time"):
+        parts.append(f"Ends: {exam['end_time'].strftime('%d %b %Y, %I:%M %p')}")
+    if not parts:
+        return "Available any time while active."
+    return " | ".join(parts)
+
+
+def annotate_exam(exam):
+    status = exam_status_label(exam)
+    exam["status_label"] = status
+    exam["schedule_text"] = exam_schedule_text(exam)
+    exam["question_count"] = exam.get("question_count", 0) or 0
+    exam["can_start"] = status == "Live" and exam["question_count"] > 0
+    return exam
 
 
 def get_student_chatbot_context(student_id):
@@ -101,51 +211,48 @@ def get_student_chatbot_context(student_id):
         "top_score_percentage": None,
     }
 
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
+    exams = fetch_all(
+        """
+        SELECT id, title, description, duration, start_time, end_time, is_active, 0 AS question_count
+        FROM exams
+        ORDER BY id DESC
+        """,
+        dictionary=True,
+    )
+    exams = [annotate_exam(exam) for exam in exams]
+    live_exams = [exam for exam in exams if exam["status_label"] == "Live"]
+    context["exam_titles"] = [exam["title"] for exam in live_exams]
+    context["exam_count"] = len(live_exams)
 
-    try:
-        local_cursor.execute("SELECT title FROM exams ORDER BY id DESC")
-        exams = local_cursor.fetchall()
-        context["exam_titles"] = [row[0] for row in exams]
-        context["exam_count"] = len(exams)
+    context["latest_result"] = fetch_one(
+        """
+        SELECT exams.title, results.score, results.total_questions
+        FROM results
+        JOIN exams ON exams.id = results.exam_id
+        WHERE results.student_id = %s
+        ORDER BY results.id DESC
+        LIMIT 1
+        """,
+        (student_id,),
+    )
 
-        local_cursor.execute(
-            """
-            SELECT exams.title, results.score, results.total_questions
-            FROM results
-            JOIN exams ON exams.id = results.exam_id
-            WHERE results.student_id = %s
-            ORDER BY results.id DESC
-            LIMIT 1
-            """,
-            (student_id,),
-        )
-        context["latest_result"] = local_cursor.fetchone()
+    attempt_row = fetch_one(
+        "SELECT COUNT(*) FROM results WHERE student_id = %s",
+        (student_id,),
+    )
+    context["attempt_count"] = attempt_row[0] if attempt_row else 0
 
-        local_cursor.execute(
-            "SELECT COUNT(*) FROM results WHERE student_id = %s",
-            (student_id,),
-        )
-        context["attempt_count"] = local_cursor.fetchone()[0]
-
-        local_cursor.execute(
-            """
-            SELECT MAX((score / total_questions) * 100)
-            FROM results
-            WHERE student_id = %s AND total_questions > 0
-            """,
-            (student_id,),
-        )
-        top_score = local_cursor.fetchone()[0]
-        context["top_score_percentage"] = (
-            float(top_score) if top_score is not None else None
-        )
-    except mysql.connector.Error:
-        pass
-    finally:
-        local_cursor.close()
-        local_db.close()
+    top_score = fetch_one(
+        """
+        SELECT MAX((score / total_questions) * 100)
+        FROM results
+        WHERE student_id = %s AND total_questions > 0
+        """,
+        (student_id,),
+    )
+    context["top_score_percentage"] = (
+        float(top_score[0]) if top_score and top_score[0] is not None else None
+    )
 
     return context
 
@@ -165,14 +272,14 @@ def generate_student_chatbot_reply(message, student_id):
         for keyword in ["how many exams", "available exams", "how many exam", "exam count"]
     ):
         if context["exam_count"] == 0:
-            return "There are no exams available right now."
+            return "There are no live exams available right now."
 
         preview = ", ".join(context["exam_titles"][:3])
         if context["exam_count"] > 3:
             preview += ", and more"
 
         return (
-            f"There are {context['exam_count']} exams available right now. "
+            f"There are {context['exam_count']} live exams available right now. "
             f"Some of them are: {preview}."
         )
 
@@ -214,15 +321,15 @@ def generate_student_chatbot_reply(message, student_id):
         (
             ["available exam", "exam list", "which exams", "show exams"],
             (
-                "The Student Dashboard shows all available exams. Use the Start Exam "
-                "button beside an exam title to begin."
+                "The Student Dashboard shows your live and upcoming exams. "
+                "Use the Start Exam button beside a live exam when you are ready."
             ),
         ),
         (
             ["start exam", "begin exam", "take exam"],
             (
                 "To start an exam, go to the Student Dashboard and click Start Exam "
-                "next to the exam you want to take."
+                "next to a live exam. Upcoming or inactive exams cannot be opened yet."
             ),
         ),
         (
@@ -236,14 +343,14 @@ def generate_student_chatbot_reply(message, student_id):
             ["submit", "submit exam", "finish exam"],
             (
                 "You can submit from the exam page using the Submit Exam button. "
-                "The system may also auto-submit when time runs out or if tab switching is detected."
+                "The system may also auto-submit when time runs out or when repeated rule violations are detected."
             ),
         ),
         (
             ["tab", "switch tab", "cheat", "warning", "reload", "refresh"],
             (
-                "During an exam, tab switching and page reload are restricted. "
-                "If the system detects a tab switch, it can auto-submit the exam."
+                f"During an exam, tab switching, fullscreen exit, copy-paste, and reload are tracked. "
+                f"After {WARNING_LIMIT} warnings the exam is auto-submitted."
             ),
         ),
         (
@@ -262,18 +369,8 @@ def generate_student_chatbot_reply(message, student_id):
             "Open the Leaderboard from the dashboard to see the top scores and rankings.",
         ),
         (
-            ["dashboard", "student dashboard", "home page"],
-            (
-                "The Student Dashboard lists available exams and gives you quick links to "
-                "Exam History and the Leaderboard."
-            ),
-        ),
-        (
-            ["login", "register", "sign up", "account"],
-            (
-                "New students can register from the registration page, then log in using "
-                "their email and password."
-            ),
+            ["profile", "my profile"],
+            "Open your profile page from the dashboard to see your summary statistics and weak areas.",
         ),
     ]
 
@@ -283,34 +380,42 @@ def generate_student_chatbot_reply(message, student_id):
 
     return (
         "I can help with basic website questions. Try asking about starting an exam, "
-        "exam timer, exam history, leaderboard, results, or dashboard navigation."
+        "exam timer, profile, exam history, leaderboard, results, or dashboard navigation."
     )
 
 
 def create_exam_activity(student_id, exam_id):
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
+    connection = get_db_connection()
+    cursor = get_cursor(connection)
     try:
-        local_cursor.execute(
+        cursor.execute(
             """
-            INSERT INTO exam_activity (student_id, exam_id, status, warning_count)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO exam_activity (student_id, exam_id, status, warning_count, last_event)
+            VALUES (%s, %s, %s, %s, %s)
             """,
-            (student_id, exam_id, "In Progress", 0),
+            (student_id, exam_id, "In Progress", 0, "Exam Started"),
         )
-        local_db.commit()
+        connection.commit()
     except mysql.connector.Error:
-        local_db.rollback()
+        connection.rollback()
+        raise
     finally:
-        local_cursor.close()
-        local_db.close()
+        cursor.close()
+        connection.close()
 
 
-def update_exam_activity(student_id, exam_id, status=None, increment_warning=False):
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
+def log_exam_event(
+    student_id,
+    exam_id,
+    event_type,
+    message=None,
+    warning_delta=0,
+    status=None,
+):
+    connection = get_db_connection()
+    cursor = get_cursor(connection, dictionary=True)
     try:
-        local_cursor.execute(
+        cursor.execute(
             """
             SELECT id, warning_count
             FROM exam_activity
@@ -320,55 +425,220 @@ def update_exam_activity(student_id, exam_id, status=None, increment_warning=Fal
             """,
             (student_id, exam_id),
         )
-        activity = local_cursor.fetchone()
-
+        activity = cursor.fetchone()
         if not activity:
-            create_exam_activity(student_id, exam_id)
-            local_cursor.execute(
+            cursor.execute(
                 """
-                SELECT id, warning_count
-                FROM exam_activity
-                WHERE student_id = %s AND exam_id = %s
-                ORDER BY id DESC
-                LIMIT 1
+                INSERT INTO exam_activity (student_id, exam_id, status, warning_count, last_event)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (student_id, exam_id),
+                (student_id, exam_id, "In Progress", 0, "Exam Started"),
             )
-            activity = local_cursor.fetchone()
+            activity = {"id": cursor.lastrowid, "warning_count": 0}
 
-        if not activity:
-            return
+        new_warning_count = activity["warning_count"] + warning_delta
+        new_status = status or ("Warning Issued" if warning_delta else "In Progress")
+        submitted_at = datetime.now() if "Submitted" in new_status else None
 
-        activity_id, warning_count = activity
-        new_warning_count = warning_count + 1 if increment_warning else warning_count
-        new_status = status if status else "In Progress"
-
-        local_cursor.execute(
+        cursor.execute(
             """
             UPDATE exam_activity
-            SET status = %s, warning_count = %s
+            SET status = %s, warning_count = %s, last_event = %s, submitted_at = %s
             WHERE id = %s
             """,
-            (new_status, new_warning_count, activity_id),
+            (
+                new_status,
+                new_warning_count,
+                message or event_type,
+                submitted_at,
+                activity["id"],
+            ),
         )
-        local_db.commit()
+
+        cursor.execute(
+            """
+            INSERT INTO exam_event_logs (student_id, exam_id, event_type, message, warning_count)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                student_id,
+                exam_id,
+                event_type,
+                message or event_type,
+                new_warning_count,
+            ),
+        )
+
+        connection.commit()
+        return new_warning_count
     except mysql.connector.Error:
-        local_db.rollback()
+        connection.rollback()
+        raise
     finally:
-        local_cursor.close()
-        local_db.close()
+        cursor.close()
+        connection.close()
+
+
+def build_csv_response(filename, header, rows):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(header)
+    writer.writerows(rows)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def get_profile_data(student_id):
+    user = fetch_one(
+        "SELECT id, name, email, role FROM users WHERE id = %s",
+        (student_id,),
+        dictionary=True,
+    )
+
+    summary = fetch_one(
+        """
+        SELECT COUNT(*) AS total_exams,
+               COALESCE(AVG((score / total_questions) * 100), 0) AS average_score,
+               COALESCE(MAX((score / total_questions) * 100), 0) AS best_score
+        FROM results
+        WHERE student_id = %s AND total_questions > 0
+        """,
+        (student_id,),
+        dictionary=True,
+    )
+
+    weak_areas = fetch_all(
+        """
+        SELECT exams.title,
+               AVG((results.score / results.total_questions) * 100) AS percentage
+        FROM results
+        JOIN exams ON exams.id = results.exam_id
+        WHERE results.student_id = %s AND results.total_questions > 0
+        GROUP BY exams.id, exams.title
+        ORDER BY percentage ASC
+        LIMIT 3
+        """,
+        (student_id,),
+        dictionary=True,
+    )
+
+    recent_results = fetch_all(
+        """
+        SELECT exams.title,
+               results.score,
+               results.total_questions,
+               results.created_at
+        FROM results
+        JOIN exams ON exams.id = results.exam_id
+        WHERE results.student_id = %s
+        ORDER BY results.id DESC
+        LIMIT 5
+        """,
+        (student_id,),
+        dictionary=True,
+    )
+
+    return {
+        "user": user,
+        "summary": summary,
+        "weak_areas": weak_areas,
+        "recent_results": recent_results,
+    }
+
+
+def column_exists(cursor, table_name, column_name):
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = %s
+          AND table_name = %s
+          AND column_name = %s
+        """,
+        (DB_CONFIG["database"], table_name, column_name),
+    )
+    return cursor.fetchone()[0] > 0
+
+
+def table_exists(cursor, table_name):
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM information_schema.tables
+        WHERE table_schema = %s
+          AND table_name = %s
+        """,
+        (DB_CONFIG["database"], table_name),
+    )
+    return cursor.fetchone()[0] > 0
+
+
+def ensure_schema_updates():
+    connection = get_db_connection()
+    cursor = get_cursor(connection)
+    try:
+        if not column_exists(cursor, "exams", "start_time"):
+            cursor.execute("ALTER TABLE exams ADD COLUMN start_time DATETIME NULL")
+        if not column_exists(cursor, "exams", "end_time"):
+            cursor.execute("ALTER TABLE exams ADD COLUMN end_time DATETIME NULL")
+        if not column_exists(cursor, "exams", "is_active"):
+            cursor.execute("ALTER TABLE exams ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1")
+
+        if not column_exists(cursor, "exam_activity", "last_event"):
+            cursor.execute("ALTER TABLE exam_activity ADD COLUMN last_event VARCHAR(255) NULL")
+        if not column_exists(cursor, "exam_activity", "submitted_at"):
+            cursor.execute("ALTER TABLE exam_activity ADD COLUMN submitted_at DATETIME NULL")
+        if not column_exists(cursor, "exam_activity", "updated_at"):
+            cursor.execute(
+                """
+                ALTER TABLE exam_activity
+                ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ON UPDATE CURRENT_TIMESTAMP
+                """
+            )
+
+        if not table_exists(cursor, "exam_event_logs"):
+            cursor.execute(
+                """
+                CREATE TABLE exam_event_logs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    student_id INT NOT NULL,
+                    exam_id INT NOT NULL,
+                    event_type VARCHAR(100) NOT NULL,
+                    message VARCHAR(255) NOT NULL,
+                    warning_count INT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_event_logs_student
+                        FOREIGN KEY (student_id) REFERENCES users(id)
+                        ON DELETE CASCADE,
+                    CONSTRAINT fk_event_logs_exam
+                        FOREIGN KEY (exam_id) REFERENCES exams(id)
+                        ON DELETE CASCADE
+                )
+                """
+            )
+
+        connection.commit()
+    finally:
+        cursor.close()
+        connection.close()
 
 
 @app.route("/")
 def home():
-    session.clear()
+    if get_current_user_id():
+        if get_current_user_role() == "admin":
+            return redirect("/admin-dashboard")
+        return redirect("/dashboard")
     return render_template("login.html")
 
 
 @app.route("/test-db")
 def test_db():
-    cursor.execute("SELECT * FROM users")
-    result = cursor.fetchall()
+    result = fetch_all("SELECT id, name, email, role FROM users")
     return str(result)
 
 
@@ -385,24 +655,15 @@ def forgot_password():
 @app.route("/forgot-password-request", methods=["POST"])
 def forgot_password_request():
     email = request.form["email"].strip().lower()
+    user = fetch_one("SELECT id, email FROM users WHERE email = %s", (email,))
 
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
+    if not user:
+        flash("No account was found with that email address.", "error")
+        return render_template("forgot_password.html", form_data={"email": email})
 
-    try:
-        local_cursor.execute("SELECT id, email FROM users WHERE email = %s", (email,))
-        user = local_cursor.fetchone()
-
-        if not user:
-            flash("No account was found with that email address.", "error")
-            return render_template("forgot_password.html", form_data={"email": email})
-
-        session["password_reset_email"] = user[1]
-        flash("Email verified. Please set your new password.", "success")
-        return redirect("/reset-password")
-    finally:
-        local_cursor.close()
-        local_db.close()
+    session["password_reset_email"] = user[1]
+    flash("Email verified. Please set your new password.", "success")
+    return redirect("/reset-password")
 
 
 @app.route("/reset-password")
@@ -433,18 +694,10 @@ def reset_password_save():
         flash("Password and confirm password do not match.", "error")
         return render_template("reset_password.html", reset_email=reset_email)
 
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
-
-    try:
-        local_cursor.execute(
-            "UPDATE users SET password = %s WHERE email = %s",
-            (generate_password_hash(password), reset_email),
-        )
-        local_db.commit()
-    finally:
-        local_cursor.close()
-        local_db.close()
+    execute_write(
+        "UPDATE users SET password = %s WHERE email = %s",
+        (generate_password_hash(password), reset_email),
+    )
 
     session.pop("password_reset_email", None)
     flash("Password reset successful. Please log in with your new password.", "success")
@@ -461,29 +714,17 @@ def register_user():
         flash("Password must be at least 6 characters long.", "error")
         return render_template("register.html", form_data={"name": name, "email": email})
 
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
+    existing_user = fetch_one("SELECT id FROM users WHERE email = %s", (email,))
+    if existing_user:
+        flash("An account with this email already exists.", "error")
+        return render_template("register.html", form_data={"name": name, "email": email})
 
-    try:
-        local_cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
-        existing_user = local_cursor.fetchone()
-        if existing_user:
-            flash("An account with this email already exists.", "error")
-            return render_template(
-                "register.html", form_data={"name": name, "email": email}
-            )
-
-        hashed_password = generate_password_hash(password)
-        local_cursor.execute(
-            "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s)",
-            (name, email, hashed_password, "student"),
-        )
-        local_db.commit()
-        flash("Registration successful. Please log in.", "success")
-        return redirect("/")
-    finally:
-        local_cursor.close()
-        local_db.close()
+    execute_write(
+        "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s)",
+        (name, email, generate_password_hash(password), "student"),
+    )
+    flash("Registration successful. Please log in.", "success")
+    return redirect("/")
 
 
 @app.route("/login-user", methods=["POST"])
@@ -491,12 +732,12 @@ def login_user():
     email = request.form["email"].strip().lower()
     password = request.form["password"]
 
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
+    connection = get_db_connection()
+    cursor = get_cursor(connection)
 
     try:
-        local_cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
-        user = local_cursor.fetchone()
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
 
         if not user:
             flash("Invalid email or password.", "error")
@@ -508,12 +749,11 @@ def login_user():
             return render_template("login.html", form_data={"email": email})
 
         if should_upgrade:
-            upgraded_password = generate_password_hash(password)
-            local_cursor.execute(
+            cursor.execute(
                 "UPDATE users SET password = %s WHERE id = %s",
-                (upgraded_password, user[0]),
+                (generate_password_hash(password), user[0]),
             )
-            local_db.commit()
+            connection.commit()
 
         session["user_id"] = user[0]
         session["user_name"] = user[1]
@@ -524,8 +764,8 @@ def login_user():
             return redirect("/admin-dashboard")
         return redirect("/dashboard")
     finally:
-        local_cursor.close()
-        local_db.close()
+        cursor.close()
+        connection.close()
 
 
 @app.route("/logout")
@@ -535,33 +775,47 @@ def logout():
 
 
 @app.route("/dashboard")
+@student_required
 def dashboard():
-    redirect_response = require_student()
-    if redirect_response:
-        return redirect_response
+    exams = fetch_all(
+        """
+        SELECT exams.id,
+               exams.title,
+               exams.description,
+               exams.duration,
+               exams.start_time,
+               exams.end_time,
+               exams.is_active,
+               COUNT(questions.id) AS question_count
+        FROM exams
+        LEFT JOIN questions ON questions.exam_id = exams.id
+        GROUP BY exams.id, exams.title, exams.description, exams.duration, exams.start_time, exams.end_time, exams.is_active
+        ORDER BY exams.start_time IS NULL DESC, exams.start_time ASC, exams.id DESC
+        """,
+        dictionary=True,
+    )
+    exams = [annotate_exam(exam) for exam in exams]
 
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
-    local_cursor.execute("SELECT * FROM exams")
-    exams = local_cursor.fetchall()
-    local_cursor.close()
-    local_db.close()
-
+    profile = get_profile_data(get_current_user_id())
     return render_template(
         "dashboard.html",
         exams=exams,
         student_name=session.get("user_name", "Student"),
+        summary=profile["summary"],
     )
 
 
+@app.route("/profile")
+@student_required
+def profile():
+    profile_data = get_profile_data(get_current_user_id())
+    return render_template("profile.html", **profile_data)
+
+
 @app.route("/student-chatbot", methods=["POST"])
+@student_required
 def student_chatbot():
-    redirect_response = require_student()
-    if redirect_response:
-        return jsonify({"reply": "Please log in again to continue."}), 401
-
     message = request.form.get("message")
-
     if message is None and request.is_json:
         payload = request.get_json(silent=True) or {}
         message = payload.get("message", "")
@@ -571,187 +825,459 @@ def student_chatbot():
 
 
 @app.route("/admin-dashboard")
+@admin_required
 def admin_dashboard():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
+    stats = fetch_one(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM exams) AS total_exams,
+            (SELECT COUNT(*) FROM users WHERE role = 'student') AS total_students,
+            (SELECT COUNT(*) FROM results) AS total_attempts,
+            (SELECT COUNT(*) FROM exam_event_logs) AS total_events
+        """,
+        dictionary=True,
+    )
+    recent_exams = fetch_all(
+        """
+        SELECT exams.id, exams.title, exams.duration, exams.start_time, exams.end_time, exams.is_active,
+               COUNT(questions.id) AS question_count
+        FROM exams
+        LEFT JOIN questions ON questions.exam_id = exams.id
+        GROUP BY exams.id, exams.title, exams.duration, exams.start_time, exams.end_time, exams.is_active
+        ORDER BY exams.id DESC
+        LIMIT 4
+        """,
+        dictionary=True,
+    )
+    recent_exams = [annotate_exam(exam) for exam in recent_exams]
 
-    return render_template("admin_dashboard.html")
+    return render_template("admin_dashboard.html", stats=stats, recent_exams=recent_exams)
 
 
 @app.route("/create-exam")
+@admin_required
 def create_exam():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
-
     return render_template("create_exam.html")
 
 
 @app.route("/save-exam", methods=["POST"])
+@admin_required
 def save_exam():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
-
-    title = request.form["title"]
-    description = request.form["description"]
+    title = request.form["title"].strip()
+    description = request.form["description"].strip()
     duration = request.form["duration"]
+    start_time = parse_datetime_local(request.form.get("start_time"))
+    end_time = parse_datetime_local(request.form.get("end_time"))
+    is_active = 1 if request.form.get("is_active") == "on" else 0
 
-    cursor.execute(
-        "INSERT INTO exams (title, description, duration) VALUES (%s,%s,%s)",
-        (title, description, duration),
+    if start_time and end_time and end_time <= start_time:
+        flash("Exam end time must be after the start time.", "error")
+        return render_template("create_exam.html")
+
+    execute_write(
+        """
+        INSERT INTO exams (title, description, duration, start_time, end_time, is_active)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        (title, description, duration, start_time, end_time, is_active),
     )
-    db.commit()
+    flash("Exam created successfully.", "success")
+    return redirect("/manage-exams")
 
-    return redirect("/admin-dashboard")
+
+@app.route("/manage-exams")
+@admin_required
+def manage_exams():
+    exams = fetch_all(
+        """
+        SELECT exams.id,
+               exams.title,
+               exams.description,
+               exams.duration,
+               exams.start_time,
+               exams.end_time,
+               exams.is_active,
+               COUNT(DISTINCT questions.id) AS question_count,
+               COUNT(DISTINCT results.id) AS attempt_count
+        FROM exams
+        LEFT JOIN questions ON questions.exam_id = exams.id
+        LEFT JOIN results ON results.exam_id = exams.id
+        GROUP BY exams.id, exams.title, exams.description, exams.duration, exams.start_time, exams.end_time, exams.is_active
+        ORDER BY exams.id DESC
+        """,
+        dictionary=True,
+    )
+    exams = [annotate_exam(exam) for exam in exams]
+    return render_template("manage_exams.html", exams=exams)
+
+
+@app.route("/edit-exam/<int:exam_id>")
+@admin_required
+def edit_exam(exam_id):
+    exam = fetch_one(
+        """
+        SELECT id, title, description, duration, start_time, end_time, is_active
+        FROM exams
+        WHERE id = %s
+        """,
+        (exam_id,),
+        dictionary=True,
+    )
+    if not exam:
+        flash("Exam not found.", "error")
+        return redirect("/manage-exams")
+    return render_template("edit_exam.html", exam=exam)
+
+
+@app.route("/update-exam/<int:exam_id>", methods=["POST"])
+@admin_required
+def update_exam(exam_id):
+    title = request.form["title"].strip()
+    description = request.form["description"].strip()
+    duration = request.form["duration"]
+    start_time = parse_datetime_local(request.form.get("start_time"))
+    end_time = parse_datetime_local(request.form.get("end_time"))
+    is_active = 1 if request.form.get("is_active") == "on" else 0
+
+    if start_time and end_time and end_time <= start_time:
+        flash("Exam end time must be after the start time.", "error")
+        exam = {
+            "id": exam_id,
+            "title": title,
+            "description": description,
+            "duration": int(duration),
+            "start_time": start_time,
+            "end_time": end_time,
+            "is_active": is_active,
+        }
+        return render_template("edit_exam.html", exam=exam)
+
+    execute_write(
+        """
+        UPDATE exams
+        SET title = %s,
+            description = %s,
+            duration = %s,
+            start_time = %s,
+            end_time = %s,
+            is_active = %s
+        WHERE id = %s
+        """,
+        (title, description, duration, start_time, end_time, is_active, exam_id),
+    )
+    flash("Exam updated successfully.", "success")
+    return redirect("/manage-exams")
+
+
+@app.route("/delete-exam/<int:exam_id>", methods=["POST"])
+@admin_required
+def delete_exam(exam_id):
+    execute_write("DELETE FROM exams WHERE id = %s", (exam_id,))
+    flash("Exam deleted successfully.", "success")
+    return redirect("/manage-exams")
 
 
 @app.route("/add-question")
+@admin_required
 def add_question():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
+    exams = fetch_all(
+        "SELECT id, title FROM exams ORDER BY title",
+        dictionary=True,
+    )
+    return render_template("add_questions.html", exams=exams)
 
-    return render_template("add_questions.html")
+
+@app.route("/manage-questions/<int:exam_id>")
+@admin_required
+def manage_questions(exam_id):
+    exam = fetch_one(
+        "SELECT id, title, description FROM exams WHERE id = %s",
+        (exam_id,),
+        dictionary=True,
+    )
+    if not exam:
+        flash("Exam not found.", "error")
+        return redirect("/manage-exams")
+
+    questions = fetch_all(
+        """
+        SELECT id, question, option_a, option_b, option_c, option_d, correct_answer
+        FROM questions
+        WHERE exam_id = %s
+        ORDER BY id ASC
+        """,
+        (exam_id,),
+        dictionary=True,
+    )
+    return render_template("manage_questions.html", exam=exam, questions=questions)
 
 
 @app.route("/save-question", methods=["POST"])
+@admin_required
 def save_question():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
-
     exam_id = request.form["exam_id"]
-    question = request.form["question"]
-    option_a = request.form["option_a"]
-    option_b = request.form["option_b"]
-    option_c = request.form["option_c"]
-    option_d = request.form["option_d"]
+    question = request.form["question"].strip()
+    option_a = request.form["option_a"].strip()
+    option_b = request.form["option_b"].strip()
+    option_c = request.form["option_c"].strip()
+    option_d = request.form["option_d"].strip()
     correct_answer = request.form["correct_answer"]
 
-    cursor.execute(
+    execute_write(
         """
         INSERT INTO questions (exam_id, question, option_a, option_b, option_c, option_d, correct_answer)
-        VALUES (%s,%s,%s,%s,%s,%s,%s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """,
         (exam_id, question, option_a, option_b, option_c, option_d, correct_answer),
     )
-    db.commit()
+    flash("Question saved successfully.", "success")
 
-    return redirect("/admin-dashboard")
+    if request.form.get("return_to") == "manage":
+        return redirect(f"/manage-questions/{exam_id}")
+    return redirect("/add-question")
+
+
+@app.route("/edit-question/<int:question_id>")
+@admin_required
+def edit_question(question_id):
+    question = fetch_one(
+        """
+        SELECT questions.id,
+               questions.exam_id,
+               questions.question,
+               questions.option_a,
+               questions.option_b,
+               questions.option_c,
+               questions.option_d,
+               questions.correct_answer,
+               exams.title AS exam_title
+        FROM questions
+        JOIN exams ON exams.id = questions.exam_id
+        WHERE questions.id = %s
+        """,
+        (question_id,),
+        dictionary=True,
+    )
+    if not question:
+        flash("Question not found.", "error")
+        return redirect("/manage-exams")
+    return render_template("edit_question.html", question=question)
+
+
+@app.route("/update-question/<int:question_id>", methods=["POST"])
+@admin_required
+def update_question(question_id):
+    exam_id = request.form["exam_id"]
+    execute_write(
+        """
+        UPDATE questions
+        SET question = %s,
+            option_a = %s,
+            option_b = %s,
+            option_c = %s,
+            option_d = %s,
+            correct_answer = %s
+        WHERE id = %s
+        """,
+        (
+            request.form["question"].strip(),
+            request.form["option_a"].strip(),
+            request.form["option_b"].strip(),
+            request.form["option_c"].strip(),
+            request.form["option_d"].strip(),
+            request.form["correct_answer"],
+            question_id,
+        ),
+    )
+    flash("Question updated successfully.", "success")
+    return redirect(f"/manage-questions/{exam_id}")
+
+
+@app.route("/delete-question/<int:question_id>", methods=["POST"])
+@admin_required
+def delete_question(question_id):
+    question = fetch_one(
+        "SELECT exam_id FROM questions WHERE id = %s",
+        (question_id,),
+    )
+    if not question:
+        flash("Question not found.", "error")
+        return redirect("/manage-exams")
+
+    execute_write("DELETE FROM questions WHERE id = %s", (question_id,))
+    flash("Question deleted successfully.", "success")
+    return redirect(f"/manage-questions/{question[0]}")
 
 
 @app.route("/start-exam/<int:exam_id>")
+@student_required
 def start_exam(exam_id):
-    redirect_response = require_student()
-    if redirect_response:
-        return redirect_response
-
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
-    local_cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
-    questions = local_cursor.fetchall()
-
-    local_cursor.execute("SELECT duration FROM exams WHERE id=%s", (exam_id,))
-    exam = local_cursor.fetchone()
-    local_cursor.close()
-    local_db.close()
-
+    exam = fetch_one(
+        """
+        SELECT exams.id,
+               exams.title,
+               exams.description,
+               exams.duration,
+               exams.start_time,
+               exams.end_time,
+               exams.is_active,
+               COUNT(questions.id) AS question_count
+        FROM exams
+        LEFT JOIN questions ON questions.exam_id = exams.id
+        WHERE exams.id = %s
+        GROUP BY exams.id, exams.title, exams.description, exams.duration, exams.start_time, exams.end_time, exams.is_active
+        """,
+        (exam_id,),
+        dictionary=True,
+    )
     if not exam:
-        return "Exam not found"
+        flash("Exam not found.", "error")
+        return redirect("/dashboard")
+
+    exam = annotate_exam(exam)
+    if not exam["can_start"]:
+        flash(f"This exam cannot be started right now. Status: {exam['status_label']}.", "error")
+        return redirect("/dashboard")
+
+    questions = fetch_all(
+        """
+        SELECT id, exam_id, question, option_a, option_b, option_c, option_d, correct_answer
+        FROM questions
+        WHERE exam_id = %s
+        ORDER BY id ASC
+        """,
+        (exam_id,),
+    )
 
     create_exam_activity(get_current_user_id(), exam_id)
+    log_exam_event(get_current_user_id(), exam_id, "Exam Started", "Exam started by student")
 
     return render_template(
         "exam.html",
         questions=questions,
+        exam=exam,
         exam_id=exam_id,
-        exam_duration=exam[0],
+        exam_duration=exam["duration"],
         student_name=session.get("user_name", "Student"),
+        warning_limit=WARNING_LIMIT,
     )
 
 
 @app.route("/exam-event", methods=["POST"])
+@student_required
 def exam_event():
-    redirect_response = require_student()
-    if redirect_response:
-        return jsonify({"success": False, "message": "Unauthorized"}), 401
-
     exam_id = request.form.get("exam_id")
-    status = request.form.get("status")
+    event_type = request.form.get("event_type") or request.form.get("status") or "Activity"
+    message = request.form.get("message") or event_type
     increment_warning = request.form.get("increment_warning") == "true"
+    status = request.form.get("status")
 
     if not exam_id:
         return jsonify({"success": False, "message": "Missing exam_id"}), 400
 
-    update_exam_activity(
+    warning_count = log_exam_event(
         get_current_user_id(),
         exam_id,
+        event_type=event_type,
+        message=message,
+        warning_delta=1 if increment_warning else 0,
         status=status,
-        increment_warning=increment_warning,
     )
-    return jsonify({"success": True})
+
+    should_auto_submit = warning_count >= WARNING_LIMIT
+    if should_auto_submit and not status:
+        log_exam_event(
+            get_current_user_id(),
+            exam_id,
+            event_type="Warning Limit Reached",
+            message="Warning limit reached; auto submission required",
+            status="Auto Submitted",
+        )
+
+    return jsonify(
+        {
+            "success": True,
+            "warning_count": warning_count,
+            "warning_limit": WARNING_LIMIT,
+            "should_auto_submit": should_auto_submit,
+        }
+    )
 
 
 @app.route("/submit-exam", methods=["POST"])
+@student_required
 def submit_exam():
-    redirect_response = require_student()
-    if redirect_response:
-        return redirect_response
-
     student_id = get_current_user_id()
     exam_id = request.form["exam_id"]
     final_status = request.form.get("final_status", "Submitted")
 
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
-    local_cursor.execute("SELECT * FROM questions WHERE exam_id=%s", (exam_id,))
-    questions = local_cursor.fetchall()
+    connection = get_db_connection()
+    cursor = get_cursor(connection)
+    try:
+        cursor.execute(
+            """
+            SELECT id, exam_id, question, option_a, option_b, option_c, option_d, correct_answer
+            FROM questions
+            WHERE exam_id = %s
+            ORDER BY id ASC
+            """,
+            (exam_id,),
+        )
+        questions = cursor.fetchall()
 
-    score = 0
-    student_answers = {}
+        score = 0
+        student_answers = {}
+        for question in questions:
+            question_id = question[0]
+            correct_answer = question[7]
+            student_answer = request.form.get(f"q{question_id}")
+            student_answers[question_id] = student_answer
+            if student_answer == correct_answer:
+                score += 1
 
-    for q in questions:
-        qid = q[0]
-        correct_answer = q[7]
-        student_answer = request.form.get(f"q{qid}")
+        total_questions = len(questions)
+        percentage = (score / total_questions) * 100 if total_questions > 0 else 0
 
-        student_answers[qid] = student_answer
-
-        if student_answer == correct_answer:
-            score += 1
-
-    total_questions = len(questions)
-    percentage = (score / total_questions) * 100 if total_questions > 0 else 0
-
-    local_cursor.execute(
-        """
-        INSERT INTO results (student_id, exam_id, score, total_questions)
-        VALUES (%s, %s, %s, %s)
-        """,
-        (student_id, exam_id, score, total_questions),
-    )
-
-    answer_sql = """
-    INSERT INTO student_answers
-    (student_id, exam_id, question_id, student_answer, correct_answer)
-    VALUES (%s,%s,%s,%s,%s)
-    """
-
-    for q in questions:
-        qid = q[0]
-        correct_answer = q[7]
-        student_answer = student_answers.get(qid)
-        local_cursor.execute(
-            answer_sql,
-            (student_id, exam_id, qid, student_answer, correct_answer),
+        cursor.execute(
+            """
+            INSERT INTO results (student_id, exam_id, score, total_questions)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (student_id, exam_id, score, total_questions),
         )
 
-    local_db.commit()
-    local_cursor.close()
-    local_db.close()
-    update_exam_activity(student_id, exam_id, status=final_status)
+        for question in questions:
+            question_id = question[0]
+            cursor.execute(
+                """
+                INSERT INTO student_answers
+                (student_id, exam_id, question_id, student_answer, correct_answer)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    student_id,
+                    exam_id,
+                    question_id,
+                    student_answers.get(question_id),
+                    question[7],
+                ),
+            )
+
+        connection.commit()
+    except mysql.connector.Error:
+        connection.rollback()
+        raise
+    finally:
+        cursor.close()
+        connection.close()
+
+    log_exam_event(
+        student_id,
+        exam_id,
+        event_type=final_status,
+        message=f"Exam finished with status: {final_status}",
+        status=final_status,
+    )
 
     return render_template(
         "result.html",
@@ -760,20 +1286,19 @@ def submit_exam():
         percentage=percentage,
         questions=questions,
         student_answers=student_answers,
+        final_status=final_status,
     )
 
 
 @app.route("/exam-history")
+@student_required
 def exam_history():
-    redirect_response = require_student()
-    if redirect_response:
-        return redirect_response
-
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
-    local_cursor.execute(
+    history = fetch_all(
         """
-        SELECT exams.title, results.score, results.total_questions
+        SELECT exams.title,
+               results.score,
+               results.total_questions,
+               results.created_at
         FROM results
         JOIN exams ON exams.id = results.exam_id
         WHERE results.student_id = %s
@@ -781,22 +1306,13 @@ def exam_history():
         """,
         (get_current_user_id(),),
     )
-    history = local_cursor.fetchall()
-    local_cursor.close()
-    local_db.close()
-
     return render_template("exam_history.html", history=history)
 
 
 @app.route("/leaderboard")
+@student_required
 def leaderboard():
-    redirect_response = require_student()
-    if redirect_response:
-        return redirect_response
-
-    local_db = get_db_connection()
-    local_cursor = local_db.cursor(buffered=True)
-    local_cursor.execute(
+    leaderboard_data = fetch_all(
         """
         SELECT users.name,
                results.score,
@@ -805,38 +1321,24 @@ def leaderboard():
         FROM results
         JOIN users ON users.id = results.student_id
         JOIN exams ON exams.id = results.exam_id
+        WHERE results.total_questions > 0
         ORDER BY (results.score / results.total_questions) DESC, results.score DESC
         LIMIT 10
         """
     )
-    leaderboard_data = local_cursor.fetchall()
-    local_cursor.close()
-    local_db.close()
-
     return render_template("leaderboard.html", leaderboard=leaderboard_data)
 
 
 @app.route("/admin-analytics")
+@admin_required
 def admin_analytics():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
-
-    cursor.execute("SELECT COUNT(*) FROM users WHERE role='student'")
-    total_students = cursor.fetchone()[0]
-
-    cursor.execute("SELECT COUNT(*) FROM exams")
-    total_exams = cursor.fetchone()[0]
-
-    cursor.execute("SELECT COUNT(*) FROM results")
-    total_attempts = cursor.fetchone()[0]
-
-    cursor.execute(
+    total_students = fetch_one("SELECT COUNT(*) FROM users WHERE role='student'")[0]
+    total_exams = fetch_one("SELECT COUNT(*) FROM exams")[0]
+    total_attempts = fetch_one("SELECT COUNT(*) FROM results")[0]
+    avg_score = fetch_one(
         "SELECT AVG((score / total_questions) * 100) FROM results WHERE total_questions > 0"
-    )
-    avg_score = cursor.fetchone()[0]
-
-    cursor.execute(
+    )[0]
+    top_student = fetch_one(
         """
         SELECT users.name, (results.score / results.total_questions * 100) AS percentage
         FROM results
@@ -846,9 +1348,7 @@ def admin_analytics():
         LIMIT 1
         """
     )
-    top_student = cursor.fetchone()
-
-    cursor.execute(
+    student_breakdown = fetch_all(
         """
         SELECT users.name,
                COUNT(results.id) AS attempts,
@@ -860,7 +1360,6 @@ def admin_analytics():
         ORDER BY users.name
         """
     )
-    student_breakdown = cursor.fetchall()
 
     return render_template(
         "admin_analytics.html",
@@ -874,32 +1373,46 @@ def admin_analytics():
 
 
 @app.route("/monitor-exams")
+@admin_required
 def monitor_exams():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
-
-    cursor.execute(
+    activity = fetch_all(
         """
-        SELECT users.name, exams.title, exam_activity.status, exam_activity.warning_count
+        SELECT users.name,
+               exams.title,
+               exam_activity.status,
+               exam_activity.warning_count,
+               exam_activity.last_event,
+               exam_activity.updated_at
         FROM exam_activity
         JOIN users ON users.id = exam_activity.student_id
         JOIN exams ON exams.id = exam_activity.exam_id
         ORDER BY exam_activity.id DESC
-        """
+        """,
+        dictionary=True,
     )
-    activity = cursor.fetchall()
-
-    return render_template("monitor.html", activity=activity)
+    event_logs = fetch_all(
+        """
+        SELECT users.name,
+               exams.title,
+               exam_event_logs.event_type,
+               exam_event_logs.message,
+               exam_event_logs.warning_count,
+               exam_event_logs.created_at
+        FROM exam_event_logs
+        JOIN users ON users.id = exam_event_logs.student_id
+        JOIN exams ON exams.id = exam_event_logs.exam_id
+        ORDER BY exam_event_logs.id DESC
+        LIMIT 100
+        """,
+        dictionary=True,
+    )
+    return render_template("monitor.html", activity=activity, event_logs=event_logs)
 
 
 @app.route("/student_performance")
+@admin_required
 def student_performance():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
-
-    cursor.execute(
+    performance = fetch_all(
         """
         SELECT users.name,
                exams.title,
@@ -908,21 +1421,16 @@ def student_performance():
         FROM results
         JOIN users ON users.id = results.student_id
         JOIN exams ON exams.id = results.exam_id
-        ORDER BY users.name
+        ORDER BY users.name, results.id DESC
         """
     )
-    performance = cursor.fetchall()
-
     return render_template("student_performance.html", performance=performance)
 
 
 @app.route("/performance-chart")
+@admin_required
 def performance_chart():
-    redirect_response = require_admin()
-    if redirect_response:
-        return redirect_response
-
-    cursor.execute(
+    data = fetch_all(
         """
         SELECT users.name,
                AVG((results.score / results.total_questions) * 100) AS percentage
@@ -933,12 +1441,88 @@ def performance_chart():
         ORDER BY users.name
         """
     )
-    data = cursor.fetchall()
-
     names = [row[0] for row in data]
     scores = [float(row[1]) for row in data]
-
     return render_template("performance_chart.html", names=names, scores=scores)
+
+
+@app.route("/export/results")
+@admin_required
+def export_results():
+    rows = fetch_all(
+        """
+        SELECT users.name,
+               users.email,
+               exams.title,
+               results.score,
+               results.total_questions,
+               ROUND((results.score / results.total_questions) * 100, 2) AS percentage,
+               results.created_at
+        FROM results
+        JOIN users ON users.id = results.student_id
+        JOIN exams ON exams.id = results.exam_id
+        WHERE results.total_questions > 0
+        ORDER BY results.created_at DESC
+        """
+    )
+    return build_csv_response(
+        "results_report.csv",
+        ["Student", "Email", "Exam", "Score", "Total", "Percentage", "Submitted At"],
+        rows,
+    )
+
+
+@app.route("/export/analytics")
+@admin_required
+def export_analytics():
+    rows = fetch_all(
+        """
+        SELECT users.name,
+               users.email,
+               COUNT(results.id) AS attempts,
+               ROUND(AVG((results.score / results.total_questions) * 100), 2) AS average_percentage,
+               ROUND(MAX((results.score / results.total_questions) * 100), 2) AS best_percentage
+        FROM users
+        LEFT JOIN results
+            ON results.student_id = users.id
+           AND results.total_questions > 0
+        WHERE users.role = 'student'
+        GROUP BY users.id, users.name, users.email
+        ORDER BY users.name
+        """
+    )
+    return build_csv_response(
+        "analytics_report.csv",
+        ["Student", "Email", "Attempts", "Average Percentage", "Best Percentage"],
+        rows,
+    )
+
+
+@app.route("/export/monitoring")
+@admin_required
+def export_monitoring():
+    rows = fetch_all(
+        """
+        SELECT users.name,
+               exams.title,
+               exam_event_logs.event_type,
+               exam_event_logs.message,
+               exam_event_logs.warning_count,
+               exam_event_logs.created_at
+        FROM exam_event_logs
+        JOIN users ON users.id = exam_event_logs.student_id
+        JOIN exams ON exams.id = exam_event_logs.exam_id
+        ORDER BY exam_event_logs.created_at DESC
+        """
+    )
+    return build_csv_response(
+        "monitoring_report.csv",
+        ["Student", "Exam", "Event Type", "Message", "Warnings", "Created At"],
+        rows,
+    )
+
+
+ensure_schema_updates()
 
 
 if __name__ == "__main__":

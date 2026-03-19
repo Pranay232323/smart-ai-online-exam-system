@@ -1,92 +1,86 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-<title>Exam Result</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
 </head>
 
 <body>
-<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
+    <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
 
-<div class="result-box">
+    <main class="page-frame">
+        <section class="page-card">
+            <h1 class="page-title">Exam Result</h1>
+            <p class="page-subtitle">Final status: {{ final_status }}</p>
 
-<h1>Exam Result</h1>
+            <div class="stats-grid">
+                <article class="stat-card">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value">{{ score }} / {{ total }}</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Percentage</span>
+                    <span class="stat-value">{{ percentage|round(2) }}%</span>
+                </article>
+            </div>
 
-<h2>Score: {{ score }} / {{ total }}</h2>
+            <div class="toolbar-row">
+                <button type="button" onclick="toggleReview()">Review Answers</button>
+                <a class="secondary-action" href="/dashboard">Back to Dashboard</a>
+            </div>
 
-<h3>Percentage: {{ percentage }}%</h3>
+            <div class="review-section" id="reviewSection">
+                <h2>Answer Review</h2>
 
-<br>
+                {% for q in questions %}
+                <div class="question">
+                    <p><b>Q{{ loop.index }}. {{ q[2] }}</b></p>
 
-<button onclick="toggleReview()">Review Answers</button>
+                    <p>
+                        Your Answer:
+                        {% if student_answers[q[0]] == "A" %}
+                        <span class="{% if q[7] == 'A' %}correct{% else %}wrong{% endif %}">
+                            A) {{ q[3] }} {% if q[7] == 'A' %}OK{% else %}Wrong{% endif %}
+                        </span>
+                        {% elif student_answers[q[0]] == "B" %}
+                        <span class="{% if q[7] == 'B' %}correct{% else %}wrong{% endif %}">
+                            B) {{ q[4] }} {% if q[7] == 'B' %}OK{% else %}Wrong{% endif %}
+                        </span>
+                        {% elif student_answers[q[0]] == "C" %}
+                        <span class="{% if q[7] == 'C' %}correct{% else %}wrong{% endif %}">
+                            C) {{ q[5] }} {% if q[7] == 'C' %}OK{% else %}Wrong{% endif %}
+                        </span>
+                        {% elif student_answers[q[0]] == "D" %}
+                        <span class="{% if q[7] == 'D' %}correct{% else %}wrong{% endif %}">
+                            D) {{ q[6] }} {% if q[7] == 'D' %}OK{% else %}Wrong{% endif %}
+                        </span>
+                        {% else %}
+                        <span class="wrong">Not Answered</span>
+                        {% endif %}
+                    </p>
 
-<div class="review-section" id="reviewSection">
+                    {% if student_answers[q[0]] != q[7] %}
+                    <p class="correct">
+                        Correct Answer:
+                        {% if q[7] == "A" %}A) {{ q[3] }}
+                        {% elif q[7] == "B" %}B) {{ q[4] }}
+                        {% elif q[7] == "C" %}C) {{ q[5] }}
+                        {% elif q[7] == "D" %}D) {{ q[6] }}
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
 
-<h2>Answer Review</h2>
-
-{% for q in questions %}
-
-<div class="question">
-
-<p><b>Q{{ loop.index }}. {{ q[2] }}</b></p>
-
-<p>
-Your Answer:
-{% if student_answers[q[0]] == "A" %}
-<span class="{% if q[7]=='A' %}correct{% else %}wrong{% endif %}">
-A) {{ q[3] }} {% if q[7]=='A' %}✔{% else %}❌{% endif %}
-</span>
-
-{% elif student_answers[q[0]] == "B" %}
-<span class="{% if q[7]=='B' %}correct{% else %}wrong{% endif %}">
-B) {{ q[4] }} {% if q[7]=='B' %}✔{% else %}❌{% endif %}
-</span>
-
-{% elif student_answers[q[0]] == "C" %}
-<span class="{% if q[7]=='C' %}correct{% else %}wrong{% endif %}">
-C) {{ q[5] }} {% if q[7]=='C' %}✔{% else %}❌{% endif %}
-</span>
-
-{% elif student_answers[q[0]] == "D" %}
-<span class="{% if q[7]=='D' %}correct{% else %}wrong{% endif %}">
-D) {{ q[6] }} {% if q[7]=='D' %}✔{% else %}❌{% endif %}
-</span>
-
-{% else %}
-<span class="wrong">Not Answered</span>
-{% endif %}
-</p>
-
-{% if student_answers[q[0]] != q[7] %}
-<p class="correct">
-Correct Answer:
-{% if q[7]=="A" %} A) {{ q[3] }}
-{% elif q[7]=="B" %} B) {{ q[4] }}
-{% elif q[7]=="C" %} C) {{ q[5] }}
-{% elif q[7]=="D" %} D) {{ q[6] }}
-{% endif %}
-✔
-</p>
-{% endif %}
-
-</div>
-
-{% endfor %}
-
-</div>
-
-<br>
-
-<a href="/dashboard">Back to Dashboard</a>
-
-</div>
-
-<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-<script src="{{ url_for('static', filename='js/result.js') }}"></script>
-
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/result.js') }}"></script>
 </body>
 
 </html>

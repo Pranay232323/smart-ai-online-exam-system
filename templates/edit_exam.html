@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Exam</title>
+    <title>Edit Exam</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
 </head>
 
@@ -14,12 +14,11 @@
     <main class="form-card">
         <div class="top-nav">
             <div>
-                <h1 class="page-title">Create Exam</h1>
-                <p class="page-subtitle">Set the exam title, schedule, duration, and whether students can access it.</p>
+                <h1 class="page-title">Edit Exam</h1>
+                <p class="page-subtitle">Update the title, schedule, and availability for this exam.</p>
             </div>
             <div class="top-nav-links">
                 <a class="secondary-action" href="/manage-exams">Manage Exams</a>
-                <a class="secondary-action" href="/admin-dashboard">Back to Admin</a>
             </div>
         </div>
 
@@ -33,40 +32,40 @@
         {% endif %}
         {% endwith %}
 
-        <form action="/save-exam" method="POST" class="form-grid">
+        <form action="/update-exam/{{ exam.id }}" method="POST" class="form-grid">
             <div>
                 <label for="title">Exam Title</label>
-                <input id="title" type="text" name="title" required>
+                <input id="title" type="text" name="title" value="{{ exam.title }}" required>
             </div>
 
             <div>
                 <label for="description">Description</label>
-                <textarea id="description" name="description" placeholder="Add a short summary, topic, or instruction for students."></textarea>
+                <textarea id="description" name="description">{{ exam.description }}</textarea>
             </div>
 
             <div>
                 <label for="duration">Duration (minutes)</label>
-                <input id="duration" type="number" name="duration" min="1" required>
+                <input id="duration" type="number" name="duration" min="1" value="{{ exam.duration }}" required>
             </div>
 
             <div>
                 <label for="start_time">Start Time</label>
-                <input id="start_time" type="datetime-local" name="start_time">
+                <input id="start_time" type="datetime-local" name="start_time" value="{{ exam.start_time|datetime_local }}">
             </div>
 
             <div>
                 <label for="end_time">End Time</label>
-                <input id="end_time" type="datetime-local" name="end_time">
+                <input id="end_time" type="datetime-local" name="end_time" value="{{ exam.end_time|datetime_local }}">
             </div>
 
             <label class="checkbox-row">
-                <input type="checkbox" name="is_active" checked>
-                <span>Make this exam active for students</span>
+                <input type="checkbox" name="is_active" {% if exam.is_active %}checked{% endif %}>
+                <span>Exam is active</span>
             </label>
 
             <div class="toolbar-row">
-                <button type="submit" class="primary-action">Create Exam</button>
-                <a class="secondary-action" href="/admin-dashboard">Cancel</a>
+                <button type="submit" class="primary-action">Save Changes</button>
+                <a class="secondary-action" href="/manage-exams">Cancel</a>
             </div>
         </form>
     </main>

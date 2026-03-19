@@ -13,22 +13,79 @@
 
     <main class="page-frame">
         <section class="page-card">
-            <h1 class="page-title">Admin Dashboard</h1>
-            <p class="page-subtitle">
-                Manage exams, monitor activity, and review analytics from one place.
-            </p>
+            <div class="top-nav">
+                <div>
+                    <h1 class="page-title">Admin Dashboard</h1>
+                    <p class="page-subtitle">Manage exams, schedules, monitoring, analytics, exports, and student performance.</p>
+                </div>
+                <div class="top-nav-links">
+                    <a class="secondary-action" href="/export/results">Export Results CSV</a>
+                    <a class="secondary-action" href="/export/analytics">Export Analytics CSV</a>
+                    <a class="secondary-action" href="/logout">Logout</a>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-stack">
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div class="stats-grid">
+                <article class="stat-card">
+                    <span class="stat-label">Total Exams</span>
+                    <span class="stat-value">{{ stats.total_exams or 0 }}</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Students</span>
+                    <span class="stat-value">{{ stats.total_students or 0 }}</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Attempts</span>
+                    <span class="stat-value">{{ stats.total_attempts or 0 }}</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Logged Events</span>
+                    <span class="stat-value">{{ stats.total_events or 0 }}</span>
+                </article>
+            </div>
 
             <div class="action-grid">
                 <a class="action-link" href="/create-exam">Create New Exam</a>
+                <a class="action-link" href="/manage-exams">Manage Exams</a>
                 <a class="action-link" href="/add-question">Add Questions</a>
                 <a class="action-link" href="/monitor-exams">Exam Monitoring</a>
                 <a class="action-link" href="/admin-analytics">View Analytics</a>
                 <a class="action-link" href="/performance-chart">Performance Graph</a>
                 <a class="action-link" href="/student_performance">Student Performance</a>
+                <a class="action-link" href="/export/monitoring">Export Monitoring CSV</a>
             </div>
+        </section>
 
-            <div class="admin-link-row">
-                <a class="secondary-action" href="/logout">Logout</a>
+        <section class="page-card">
+            <h2 class="page-title" style="font-size: 26px;">Recent Exam Snapshot</h2>
+            <div class="card-grid">
+                {% for exam in recent_exams %}
+                <article class="info-card">
+                    <div class="status-chip {{ exam.status_label|lower }}">{{ exam.status_label }}</div>
+                    <h3>{{ exam.title }}</h3>
+                    <p class="secondary-note">{{ exam.question_count }} questions | {{ exam.duration }} minutes</p>
+                    <p class="secondary-note">{{ exam.schedule_text }}</p>
+                    <div class="inline-actions">
+                        <a class="secondary-action" href="/edit-exam/{{ exam.id }}">Edit</a>
+                        <a class="secondary-action" href="/manage-questions/{{ exam.id }}">Questions</a>
+                    </div>
+                </article>
+                {% else %}
+                <article class="info-card">
+                    <h3>No exams yet</h3>
+                    <p class="secondary-note">Create your first exam to start building the platform.</p>
+                </article>
+                {% endfor %}
             </div>
         </section>
     </main>

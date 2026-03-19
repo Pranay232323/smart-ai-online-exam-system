@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Questions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+</head>
+
+<body>
+    <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
+
+    <main class="page-frame">
+        <section class="page-card">
+            <div class="top-nav">
+                <div>
+                    <h1 class="page-title">Manage Questions</h1>
+                    <p class="page-subtitle">{{ exam.title }}{% if exam.description %} - {{ exam.description }}{% endif %}</p>
+                </div>
+                <div class="top-nav-links">
+                    <a class="secondary-action" href="/manage-exams">Manage Exams</a>
+                    <a class="secondary-action" href="/admin-dashboard">Admin Dashboard</a>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-stack">
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div class="card-grid" style="margin-bottom: 24px;">
+                <article class="info-card">
+                    <h3>Add New Question</h3>
+                    <form action="/save-question" method="POST" class="form-grid">
+                        <input type="hidden" name="exam_id" value="{{ exam.id }}">
+                        <input type="hidden" name="return_to" value="manage">
+
+                        <div>
+                            <label for="question">Question</label>
+                            <textarea id="question" name="question" required></textarea>
+                        </div>
+
+                        <div>
+                            <label for="option_a">Option A</label>
+                            <input id="option_a" type="text" name="option_a" required>
+                        </div>
+
+                        <div>
+                            <label for="option_b">Option B</label>
+                            <input id="option_b" type="text" name="option_b" required>
+                        </div>
+
+                        <div>
+                            <label for="option_c">Option C</label>
+                            <input id="option_c" type="text" name="option_c" required>
+                        </div>
+
+                        <div>
+                            <label for="option_d">Option D</label>
+                            <input id="option_d" type="text" name="option_d" required>
+                        </div>
+
+                        <div>
+                            <label for="correct_answer">Correct Answer</label>
+                            <select id="correct_answer" name="correct_answer" required>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                            </select>
+                        </div>
+
+                        <div class="toolbar-row">
+                            <button type="submit" class="primary-action">Add Question</button>
+                        </div>
+                    </form>
+                </article>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Question</th>
+                            <th>Correct Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for question in questions %}
+                        <tr>
+                            <td>{{ question.id }}</td>
+                            <td>{{ question.question }}</td>
+                            <td>{{ question.correct_answer }}</td>
+                            <td>
+                                <div class="inline-actions">
+                                    <a class="secondary-action" href="/edit-question/{{ question.id }}">Edit</a>
+                                    <form action="/delete-question/{{ question.id }}" method="POST" onsubmit="return confirm('Delete this question?');">
+                                        <button type="submit" class="secondary-action">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4">No questions have been added to this exam yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+
+</html>

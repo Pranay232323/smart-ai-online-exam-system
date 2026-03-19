@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+</head>
+
+<body>
+    <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
+
+    <main class="page-frame">
+        <section class="page-card">
+            <div class="top-nav">
+                <div>
+                    <h1 class="page-title">My Profile</h1>
+                    <p class="page-subtitle">See your account details, performance summary, and weaker areas at a glance.</p>
+                </div>
+                <div class="top-nav-links">
+                    <a class="secondary-action" href="/dashboard">Student Dashboard</a>
+                </div>
+            </div>
+
+            <div class="card-grid">
+                <article class="info-card">
+                    <h3>{{ user.name }}</h3>
+                    <p class="secondary-note">{{ user.email }}</p>
+                    <p class="secondary-note">Role: {{ user.role|capitalize }}</p>
+                </article>
+            </div>
+
+            <div class="stats-grid">
+                <article class="stat-card">
+                    <span class="stat-label">Total Exams</span>
+                    <span class="stat-value">{{ summary.total_exams or 0 }}</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Average Score</span>
+                    <span class="stat-value">{{ (summary.average_score or 0)|round(1) }}%</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Best Score</span>
+                    <span class="stat-value">{{ (summary.best_score or 0)|round(1) }}%</span>
+                </article>
+            </div>
+        </section>
+
+        <section class="page-card">
+            <h2 class="page-title" style="font-size: 26px;">Weak Areas</h2>
+            <div class="card-grid">
+                {% for area in weak_areas %}
+                <article class="info-card">
+                    <h3>{{ area.title }}</h3>
+                    <p class="secondary-note">{{ area.percentage|round(1) }}% average score</p>
+                </article>
+                {% else %}
+                <article class="info-card">
+                    <h3>No weak areas yet</h3>
+                    <p class="secondary-note">Complete a few exams and your performance trends will appear here.</p>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="page-card">
+            <h2 class="page-title" style="font-size: 26px;">Recent Results</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Exam</th>
+                            <th>Score</th>
+                            <th>Percentage</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in recent_results %}
+                        <tr>
+                            <td>{{ result.title }}</td>
+                            <td>{{ result.score }} / {{ result.total_questions }}</td>
+                            <td>{{ ((result.score / result.total_questions) * 100)|round(2) if result.total_questions else 0 }}%</td>
+                            <td>{{ result.created_at.strftime('%d %b %Y %I:%M %p') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4">No results found yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+
+</html>

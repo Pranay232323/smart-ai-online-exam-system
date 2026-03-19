@@ -1,47 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-
-<title>Student Performance</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/student_performance.css') }}">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Performance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/student_performance.css') }}">
 </head>
 
 <body>
-<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
+    <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
 
-<h1>Student Performance Analytics</h1>
+    <main class="page-frame">
+        <section class="page-card">
+            <div class="top-nav">
+                <div>
+                    <h1 class="page-title">Student Performance Analytics</h1>
+                    <p class="page-subtitle">Detailed exam-by-exam performance for each student.</p>
+                </div>
+                <div class="top-nav-links">
+                    <a class="secondary-action" href="/export/results">Export Results CSV</a>
+                    <a class="secondary-action" href="/admin-dashboard">Back to Admin</a>
+                </div>
+            </div>
 
-<table>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Exam</th>
+                            <th>Score</th>
+                            <th>Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in performance %}
+                        <tr>
+                            <td>{{ row[0] }}</td>
+                            <td>{{ row[1] }}</td>
+                            <td>{{ row[2] }} / {{ row[3] }}</td>
+                            <td>{{ ((row[2] / row[3]) * 100)|round(2) if row[3] else 0 }}%</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4">No performance data found yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
 
-<tr>
-<th>Student</th>
-<th>Exam</th>
-<th>Score</th>
-<th>Percentage</th>
-</tr>
-
-{% for row in performance %}
-
-<tr>
-<td>{{ row[0] }}</td>
-<td>{{ row[1] }}</td>
-<td>{{ row[2] }} / {{ row[3] }}</td>
-<td>{{ ((row[2]/row[3])*100)|round(2) }}%</td>
-</tr>
-
-{% endfor %}
-
-</table>
-
-<br>
-
-<a href="/admin-dashboard">Back to Admin Panel</a>
-
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </body>
-
-<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 
 </html>

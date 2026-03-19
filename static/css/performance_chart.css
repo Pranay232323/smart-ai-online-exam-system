@@ -1,16 +1,11 @@
 body {
     font-family: Arial;
-    text-align: center;
-    margin-top: 50px;
     color: var(--text);
 }
 
-.box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    width: 700px;
-    margin: auto;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: var(--shadow);
+canvas {
+    width: 100% !important;
+    max-height: 460px;
+    border-radius: 18px;
+    padding: 10px;
 }

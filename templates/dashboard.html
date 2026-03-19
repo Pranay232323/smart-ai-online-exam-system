@@ -11,21 +11,56 @@
 
 <body>
     <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
+
     <div class="page">
         <section class="hero">
             <div>
                 <h1>Student Dashboard</h1>
                 <p>
-                    Welcome, {{ student_name }}.
-                    <br>
-                    View your available exams, check your history, and use the help chatbot any time from the
-                    floating button in the bottom-left corner.
+                    Welcome, {{ student_name }}. Track your progress, review your profile,
+                    and start live exams from one place.
                 </p>
             </div>
             <div class="hero-actions">
+                <a class="outline-btn" href="/profile">My Profile</a>
                 <a class="outline-btn" href="/exam-history">My Exam History</a>
                 <a class="outline-btn" href="/leaderboard">Leaderboard</a>
                 <a class="primary-btn" href="/logout">Logout</a>
+            </div>
+        </section>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-stack" style="margin-top: 20px;">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <section class="content-card">
+            <div class="section-head">
+                <div>
+                    <h2>Your Snapshot</h2>
+                    <p>Quick performance summary from your completed exams.</p>
+                </div>
+                <div class="assist-note">Need help? Open the chat button below.</div>
+            </div>
+
+            <div class="stats-grid">
+                <article class="stat-card">
+                    <span class="stat-label">Total Exams Taken</span>
+                    <span class="stat-value">{{ summary.total_exams or 0 }}</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Average Score</span>
+                    <span class="stat-value">{{ (summary.average_score or 0)|round(1) }}%</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Best Score</span>
+                    <span class="stat-value">{{ (summary.best_score or 0)|round(1) }}%</span>
+                </article>
             </div>
         </section>
 
@@ -33,29 +68,39 @@
             <div class="section-head">
                 <div>
                     <h2>Available Exams</h2>
-                    <p>Select an exam and start when you are ready.</p>
+                    <p>Live exams can be started now. Upcoming exams will unlock automatically at their start time.</p>
                 </div>
-                <div class="assist-note">Need help? Open the chat button below.</div>
+                <div class="assist-note">Warnings limit during exam: 3</div>
             </div>
 
             <div class="exam-list">
                 {% if exams %}
                 {% for exam in exams %}
                 <article class="exam-card">
-                    <h3>{{ exam[1] }}</h3>
-                    <p>{{ exam[2] if exam[2] else "No description has been added for this exam yet." }}</p>
                     <div class="exam-meta">
-                        <span class="chip">Exam ID: {{ exam[0] }}</span>
-                        <span class="chip">Duration: {{ exam[3] }} mins</span>
+                        <span class="chip">Exam ID: {{ exam.id }}</span>
+                        <span class="chip">Duration: {{ exam.duration }} mins</span>
+                        <span class="chip">Questions: {{ exam.question_count }}</span>
+                        <span class="status-chip {{ exam.status_label|lower }}">{{ exam.status_label }}</span>
                     </div>
+                    <h3>{{ exam.title }}</h3>
+                    <p>{{ exam.description if exam.description else "No description has been added for this exam yet." }}</p>
+                    <p class="secondary-note">{{ exam.schedule_text }}</p>
+
+                    {% if exam.can_start %}
                     <button
                         type="button"
                         class="primary-btn rules-trigger"
-                        data-exam-id="{{ exam[0] }}"
-                        data-exam-title="{{ exam[1] }}"
+                        data-exam-id="{{ exam.id }}"
+                        data-exam-title="{{ exam.title }}"
                     >
                         Start Exam
                     </button>
+                    {% else %}
+                    <button type="button" class="outline-btn" disabled>
+                        {{ "No Questions Yet" if exam.question_count == 0 else exam.status_label }}
+                    </button>
+                    {% endif %}
                 </article>
                 {% endfor %}
                 {% else %}
@@ -63,27 +108,28 @@
                     No exams are available right now. Please check back later.
                 </div>
                 {% endif %}
-        </div>
-    </section>
-
-    <section class="rules-popup" id="rulesPopup" aria-hidden="true">
-        <div class="rules-card">
-            <h2>Exam Rules And Regulations</h2>
-            <p id="rulesExamTitle">Please read these instructions carefully before starting the exam.</p>
-            <ul class="rules-list">
-                <li>Make sure you have a stable internet connection before starting.</li>
-                <li>Do not switch tabs or leave the exam window during the test.</li>
-                <li>Reloading or refreshing during the exam may trigger a warning.</li>
-                <li>When the timer ends, the exam will be submitted automatically.</li>
-                <li>Read each question carefully before choosing your answer.</li>
-                <li>Click submit only when you are ready to finish the exam.</li>
-            </ul>
-            <div class="rules-actions">
-                <button type="button" class="outline-btn" onclick="closeRulesPopup()">Cancel</button>
-                <a href="#" class="primary-btn" id="confirmStartExam">I Understand, Start Exam</a>
             </div>
-        </div>
-    </section>
+        </section>
+
+        <section class="rules-popup" id="rulesPopup" aria-hidden="true">
+            <div class="rules-card">
+                <h2>Exam Rules And Regulations</h2>
+                <p id="rulesExamTitle">Please read these instructions carefully before starting the exam.</p>
+                <ul class="rules-list">
+                    <li>Keep a stable internet connection throughout the exam.</li>
+                    <li>Do not switch tabs or minimize the exam window.</li>
+                    <li>Stay in fullscreen mode if the exam enters it.</li>
+                    <li>Copy, paste, cut, and right-click actions are monitored.</li>
+                    <li>Reloading or refreshing during the exam triggers a warning.</li>
+                    <li>After 3 warnings, the exam will be submitted automatically.</li>
+                    <li>When the timer ends, the exam is submitted automatically.</li>
+                </ul>
+                <div class="rules-actions">
+                    <button type="button" class="outline-btn" onclick="closeRulesPopup()">Cancel</button>
+                    <a href="#" class="primary-btn" id="confirmStartExam">I Understand, Start Exam</a>
+                </div>
+            </div>
+        </section>
     </div>
 
     <button
@@ -100,7 +146,7 @@
         <div class="chat-header">
             <div>
                 <h3>Student Help Chatbot</h3>
-                <p>Ask about exams, results, history, leaderboard, and dashboard usage.</p>
+                <p>Ask about exams, results, history, leaderboard, profile, and dashboard usage.</p>
             </div>
             <button type="button" class="chat-close" onclick="toggleChat(false)">Close</button>
         </div>

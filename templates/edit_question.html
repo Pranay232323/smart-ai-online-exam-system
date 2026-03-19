@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Question</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+</head>
+
+<body>
+    <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
+
+    <main class="form-card">
+        <div class="top-nav">
+            <div>
+                <h1 class="page-title">Edit Question</h1>
+                <p class="page-subtitle">Update the question for {{ question.exam_title }}.</p>
+            </div>
+            <div class="top-nav-links">
+                <a class="secondary-action" href="/manage-questions/{{ question.exam_id }}">Back to Questions</a>
+            </div>
+        </div>
+
+        <form action="/update-question/{{ question.id }}" method="POST" class="form-grid">
+            <input type="hidden" name="exam_id" value="{{ question.exam_id }}">
+
+            <div>
+                <label for="question">Question</label>
+                <textarea id="question" name="question" required>{{ question.question }}</textarea>
+            </div>
+
+            <div>
+                <label for="option_a">Option A</label>
+                <input id="option_a" type="text" name="option_a" value="{{ question.option_a }}" required>
+            </div>
+
+            <div>
+                <label for="option_b">Option B</label>
+                <input id="option_b" type="text" name="option_b" value="{{ question.option_b }}" required>
+            </div>
+
+            <div>
+                <label for="option_c">Option C</label>
+                <input id="option_c" type="text" name="option_c" value="{{ question.option_c }}" required>
+            </div>
+
+            <div>
+                <label for="option_d">Option D</label>
+                <input id="option_d" type="text" name="option_d" value="{{ question.option_d }}" required>
+            </div>
+
+            <div>
+                <label for="correct_answer">Correct Answer</label>
+                <select id="correct_answer" name="correct_answer" required>
+                    <option value="A" {% if question.correct_answer == "A" %}selected{% endif %}>A</option>
+                    <option value="B" {% if question.correct_answer == "B" %}selected{% endif %}>B</option>
+                    <option value="C" {% if question.correct_answer == "C" %}selected{% endif %}>C</option>
+                    <option value="D" {% if question.correct_answer == "D" %}selected{% endif %}>D</option>
+                </select>
+            </div>
+
+            <div class="toolbar-row">
+                <button type="submit" class="primary-action">Save Question</button>
+                <a class="secondary-action" href="/manage-questions/{{ question.exam_id }}">Cancel</a>
+            </div>
+        </form>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+
+</html>

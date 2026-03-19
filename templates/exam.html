@@ -1,32 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>Exam</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ exam.title }} - Exam</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/exam.css') }}">
 </head>
 
-<body id="examApp" data-exam-id="{{ exam_id }}" data-exam-duration="{{ exam_duration }}">
+<body
+    id="examApp"
+    data-exam-id="{{ exam_id }}"
+    data-exam-duration="{{ exam_duration }}"
+    data-warning-limit="{{ warning_limit }}"
+>
     <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
 
-    <h2>Online Exam</h2>
-    <p>Student: {{ student_name }}</p>
-    <h3>Time Remaining: <span id="timer">30:00</span></h3>
-    <h4 id="answerCount">Answered: 0</h4>
+    <main class="page-frame">
+        <section class="page-card exam-shell">
+            <div class="top-nav">
+                <div>
+                    <h1 class="page-title">{{ exam.title }}</h1>
+                    <p class="page-subtitle">
+                        Student: {{ student_name }}<br>
+                        {{ exam.schedule_text }}
+                    </p>
+                </div>
+                <div class="top-nav-links">
+                    <div class="status-chip live">Warnings Limit: {{ warning_limit }}</div>
+                </div>
+            </div>
 
-    <div id="question-box"></div>
+            <div class="stats-grid">
+                <article class="stat-card">
+                    <span class="stat-label">Time Remaining</span>
+                    <span class="stat-value" id="timer">30:00</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Answered</span>
+                    <span class="stat-value" id="answerCount">0 / {{ questions|length }}</span>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-label">Warnings</span>
+                    <span class="stat-value" id="warningCount">0 / {{ warning_limit }}</span>
+                </article>
+            </div>
 
-    <button type="button" onclick="prevQuestion()">Previous</button>
-    <button type="button" onclick="nextQuestion()">Next</button>
+            <div class="info-card">
+                <div id="question-box"></div>
+            </div>
 
-    <br><br>
+            <div class="toolbar-row">
+                <button type="button" onclick="prevQuestion()">Previous</button>
+                <button type="button" onclick="nextQuestion()">Next</button>
+                <button type="button" onclick="requestFullscreenMode()">Enter Fullscreen</button>
+                <button type="button" onclick="showPopup()">Submit Exam</button>
+            </div>
 
-    <div id="palette"></div>
+            <div class="info-card">
+                <h3>Question Palette</h3>
+                <div id="palette"></div>
+            </div>
 
-    <br>
-
-    <button type="button" onclick="showPopup()">Submit Exam</button>
+            <div class="card-grid">
+                <article class="info-card">
+                    <h3>Status Guide</h3>
+                    <p class="secondary-note"><span style="color:green;">Green</span> means answered.</p>
+                    <p class="secondary-note"><span style="color:orange;">Orange</span> means visited but unanswered.</p>
+                    <p class="secondary-note"><span style="color:black;">Black</span> means not visited.</p>
+                </article>
+                <article class="info-card">
+                    <h3>Exam Rules</h3>
+                    <p class="secondary-note">Tab switch, fullscreen exit, reload attempts, copy, paste, cut, and right-click are monitored.</p>
+                </article>
+            </div>
+        </section>
+    </main>
 
     <form id="examForm" action="/submit-exam" method="POST">
         <input type="hidden" name="exam_id" value="{{ exam_id }}">
@@ -47,23 +97,16 @@
     <div id="violationOverlay">
         <div id="violationBox">
             <h3>Exam Rule Violation</h3>
-            <p>
-                You switched tabs during the exam. This violates the exam rules, so your exam
-                will now be submitted.
+            <p id="violationMessage">
+                A rule violation was detected. Please continue carefully.
             </p>
             <button type="button" onclick="confirmViolationSubmit()">OK, Submit Exam</button>
         </div>
     </div>
 
-    <h4>Status</h4>
-    <p style="color:green">Answered</p>
-    <p style="color:orange">Visited but unanswered</p>
-    <p style="color:black">Not visited</p>
-
     <script id="questions-data" type="application/json">{{ questions | tojson }}</script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/exam.js') }}"></script>
-
 </body>
 
 </html>

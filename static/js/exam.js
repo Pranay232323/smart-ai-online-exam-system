@@ -1,19 +1,31 @@
 const examApp = document.getElementById("examApp");
 const examId = examApp.dataset.examId;
-let questions = JSON.parse(document.getElementById("questions-data").textContent);
+const warningLimit = Number(examApp.dataset.warningLimit || 3);
+const questions = JSON.parse(document.getElementById("questions-data").textContent);
+
 let currentQuestion = 0;
 let answers = {};
 let visited = {};
 let examSubmitting = false;
-let violations = 0;
+let warnings = 0;
+let pendingViolationMessage = "";
 let violationDetected = false;
 let time = Number(examApp.dataset.examDuration) * 60;
 
-function notifyExamEvent(status, incrementWarning = false) {
+function updateWarningCounter() {
+    const warningCount = document.getElementById("warningCount");
+    if (warningCount) {
+        warningCount.innerText = warnings + " / " + warningLimit;
+    }
+}
+
+function notifyExamEvent(eventType, message, incrementWarning = false, status = "") {
     const body = new URLSearchParams({
         exam_id: examId,
-        status: status,
+        event_type: eventType,
+        message: message,
         increment_warning: incrementWarning ? "true" : "false",
+        status: status,
     });
 
     return fetch("/exam-event", {
@@ -22,29 +34,31 @@ function notifyExamEvent(status, incrementWarning = false) {
             "Content-Type": "application/x-www-form-urlencoded",
         },
         body: body.toString(),
-    }).catch(() => null);
+    })
+        .then((response) => response.json())
+        .catch(() => null);
 }
 
 function loadQuestion() {
     visited[currentQuestion] = true;
 
-    let q = questions[currentQuestion];
+    const q = questions[currentQuestion];
     let html =
         "<h3>Question " + (currentQuestion + 1) + " / " + questions.length + "</h3>";
     html += "<p>" + q[2] + "</p>";
-    html += `<label class="option"><input type="radio" name="opt" value="A" onclick="saveAnswer('A')"> ${q[3]}</label><br>`;
-    html += `<label class="option"><input type="radio" name="opt" value="B" onclick="saveAnswer('B')"> ${q[4]}</label><br>`;
-    html += `<label class="option"><input type="radio" name="opt" value="C" onclick="saveAnswer('C')"> ${q[5]}</label><br>`;
-    html += `<label class="option"><input type="radio" name="opt" value="D" onclick="saveAnswer('D')"> ${q[6]}</label><br>`;
+    html += `<label class="option"><input type="radio" name="opt" value="A" onclick="saveAnswer('A')"> ${q[3]}</label>`;
+    html += `<label class="option"><input type="radio" name="opt" value="B" onclick="saveAnswer('B')"> ${q[4]}</label>`;
+    html += `<label class="option"><input type="radio" name="opt" value="C" onclick="saveAnswer('C')"> ${q[5]}</label>`;
+    html += `<label class="option"><input type="radio" name="opt" value="D" onclick="saveAnswer('D')"> ${q[6]}</label>`;
 
     document.getElementById("question-box").innerHTML = html;
 
-    let qid = q[0];
+    const qid = q[0];
     if (answers[qid]) {
-        let radios = document.getElementsByName("opt");
-        for (let r of radios) {
-            if (r.value === answers[qid]) {
-                r.checked = true;
+        const radios = document.getElementsByName("opt");
+        for (const radio of radios) {
+            if (radio.value === answers[qid]) {
+                radio.checked = true;
             }
         }
     }
@@ -53,67 +67,64 @@ function loadQuestion() {
     updateCounter();
 }
 
-function saveAnswer(opt) {
-    let qid = questions[currentQuestion][0];
-    answers[qid] = opt;
+function saveAnswer(option) {
+    const qid = questions[currentQuestion][0];
+    answers[qid] = option;
     updateCounter();
     updatePalette();
 }
 
 function updateCounter() {
-    let answered = Object.keys(answers).length;
+    const answered = Object.keys(answers).length;
     document.getElementById("answerCount").innerText =
-        "Answered: " + answered + " / " + questions.length;
+        answered + " / " + questions.length;
 }
 
 function nextQuestion() {
     if (currentQuestion < questions.length - 1) {
-        currentQuestion++;
+        currentQuestion += 1;
         loadQuestion();
     }
 }
 
 function prevQuestion() {
     if (currentQuestion > 0) {
-        currentQuestion--;
+        currentQuestion -= 1;
         loadQuestion();
     }
 }
 
-function jumpQuestion(i) {
-    currentQuestion = i;
+function jumpQuestion(index) {
+    currentQuestion = index;
     loadQuestion();
 }
 
 function buildPalette() {
     let html = "<span onclick='prevQuestion()'><</span>";
-
-    for (let i = 0; i < questions.length; i++) {
+    for (let i = 0; i < questions.length; i += 1) {
         html += `<span id="p${i}" onclick="jumpQuestion(${i})">${i + 1}</span>`;
     }
-
     html += "<span onclick='nextQuestion()'>></span>";
     document.getElementById("palette").innerHTML = html;
 }
 
 function updatePalette() {
-    for (let i = 0; i < questions.length; i++) {
-        let el = document.getElementById("p" + i);
-        if (!el) {
+    for (let i = 0; i < questions.length; i += 1) {
+        const element = document.getElementById("p" + i);
+        if (!element) {
             continue;
         }
 
-        let qid = questions[i][0];
-
+        const qid = questions[i][0];
         if (answers[qid]) {
-            el.style.color = "green";
+            element.style.color = "green";
         } else if (visited[i]) {
-            el.style.color = "orange";
+            element.style.color = "orange";
         } else {
-            el.style.color = "black";
+            element.style.color = "black";
         }
 
-        el.style.textDecoration = i === currentQuestion ? "underline" : "none";
+        element.style.textDecoration = i === currentQuestion ? "underline" : "none";
     }
 }
 
@@ -125,12 +136,28 @@ function closePopup() {
     document.getElementById("popupOverlay").style.display = "none";
 }
 
-function showViolationPopup() {
+function showViolationPopup(message) {
+    document.getElementById("violationMessage").innerText = message;
     document.getElementById("violationOverlay").style.display = "flex";
 }
 
 function confirmViolationSubmit() {
     submitExam("Auto Submitted");
+}
+
+function appendHiddenAnswers(form) {
+    Array.from(form.querySelectorAll("input[data-answer='true']")).forEach((input) => {
+        input.remove();
+    });
+
+    Object.keys(answers).forEach((qid) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "q" + qid;
+        input.value = answers[qid];
+        input.dataset.answer = "true";
+        form.appendChild(input);
+    });
 }
 
 function submitExam(status = "Submitted") {
@@ -141,81 +168,122 @@ function submitExam(status = "Submitted") {
     examSubmitting = true;
     document.getElementById("finalStatus").value = status;
 
-    let form = document.getElementById("examForm");
-
-    for (let qid in answers) {
-        let input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "q" + qid;
-        input.value = answers[qid];
-        form.appendChild(input);
-    }
-
-    notifyExamEvent(status, false);
+    const form = document.getElementById("examForm");
+    appendHiddenAnswers(form);
+    notifyExamEvent(status, "Exam submitted", false, status);
     setTimeout(() => form.submit(), 50);
 }
 
 function startTimer() {
-    setInterval(function () {
-        let m = Math.floor(time / 60);
-        let s = time % 60;
+    setInterval(() => {
+        const minutes = Math.floor(time / 60);
+        const seconds = time % 60;
 
         document.getElementById("timer").innerText =
-            m + ":" + (s < 10 ? "0" : "") + s;
+            minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
 
-        time--;
-
+        time -= 1;
         if (time <= 0) {
             submitExam("Auto Submitted");
         }
     }, 1000);
 }
 
-function showWarning(txt) {
-    let box = document.getElementById("warningBox");
-    box.innerText = txt;
+function showWarning(message) {
+    const box = document.getElementById("warningBox");
+    box.innerText = message;
     box.style.display = "block";
 
     setTimeout(() => {
         box.style.display = "none";
-    }, 3000);
+    }, 3500);
 }
 
-document.addEventListener("visibilitychange", function () {
-    if (document.hidden && !examSubmitting) {
-        violations++;
+function registerViolation(eventType, message) {
+    if (examSubmitting) {
+        return;
+    }
+
+    notifyExamEvent(eventType, message, true).then((data) => {
+        warnings = data && typeof data.warning_count === "number" ? data.warning_count : warnings + 1;
+        updateWarningCounter();
+        showWarning(message + " (" + warnings + "/" + warningLimit + ")");
+
+        if (data && data.should_auto_submit) {
+            pendingViolationMessage =
+                "You crossed the allowed warning limit. Your exam will now be submitted.";
+        } else {
+            pendingViolationMessage = message + " This warning has been logged.";
+        }
         violationDetected = true;
-        showWarning("Tab switching detected " + violations + "/1");
-        notifyExamEvent("Warning Issued", true);
+    });
+}
+
+function requestFullscreenMode() {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => null);
+    }
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden && !examSubmitting) {
+        registerViolation("Tab Switch", "Tab switching was detected during the exam.");
     } else if (!document.hidden && violationDetected && !examSubmitting) {
-        showViolationPopup();
+        showViolationPopup(pendingViolationMessage);
         violationDetected = false;
     }
 });
 
-document.addEventListener("keydown", function (e) {
-    if (
-        e.key === "F5" ||
-        (e.ctrlKey && e.key.toLowerCase() === "r") ||
-        (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "r")
-    ) {
-        e.preventDefault();
-        e.stopPropagation();
-        showWarning("Reload disabled during exam");
-        notifyExamEvent("Warning Issued", true);
-        return false;
+document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && !examSubmitting) {
+        registerViolation("Fullscreen Exit", "You exited fullscreen during the exam.");
     }
 });
 
-window.addEventListener("beforeunload", function (e) {
+["copy", "paste", "cut", "contextmenu"].forEach((eventName) => {
+    document.addEventListener(eventName, (event) => {
+        if (examSubmitting) {
+            return;
+        }
+
+        event.preventDefault();
+        registerViolation(
+            eventName.toUpperCase(),
+            eventName.charAt(0).toUpperCase() + eventName.slice(1) + " is blocked during the exam."
+        );
+    });
+});
+
+document.addEventListener("keydown", (event) => {
+    const key = event.key.toLowerCase();
+    const blockedShortcut =
+        event.key === "F5" ||
+        (event.ctrlKey && key === "r") ||
+        (event.ctrlKey && key === "c") ||
+        (event.ctrlKey && key === "v") ||
+        (event.ctrlKey && key === "x") ||
+        (event.ctrlKey && event.shiftKey && key === "r");
+
+    if (blockedShortcut) {
+        event.preventDefault();
+        event.stopPropagation();
+        registerViolation("Blocked Shortcut", "A restricted keyboard shortcut was used.");
+        return false;
+    }
+
+    return true;
+});
+
+window.addEventListener("beforeunload", (event) => {
     if (!examSubmitting) {
-        e.preventDefault();
-        e.returnValue = "You will leave the exam and go back to dashboard.";
+        event.preventDefault();
+        event.returnValue = "You are leaving an active exam.";
     }
 });
 
 buildPalette();
 loadQuestion();
+updateWarningCounter();
 startTimer();
 
 window.prevQuestion = prevQuestion;
@@ -226,3 +294,4 @@ window.showPopup = showPopup;
 window.closePopup = closePopup;
 window.submitExam = submitExam;
 window.confirmViolationSubmit = confirmViolationSubmit;
+window.requestFullscreenMode = requestFullscreenMode;

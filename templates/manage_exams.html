@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Exams</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+</head>
+
+<body>
+    <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
+
+    <main class="page-frame">
+        <section class="page-card">
+            <div class="top-nav">
+                <div>
+                    <h1 class="page-title">Manage Exams</h1>
+                    <p class="page-subtitle">Edit schedules, activate or deactivate exams, and manage question sets.</p>
+                </div>
+                <div class="top-nav-links">
+                    <a class="primary-action" href="/create-exam">Create Exam</a>
+                    <a class="secondary-action" href="/admin-dashboard">Admin Dashboard</a>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-stack">
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div class="card-grid">
+                {% for exam in exams %}
+                <article class="info-card">
+                    <div class="status-chip {{ exam.status_label|lower }}">{{ exam.status_label }}</div>
+                    <h3>{{ exam.title }}</h3>
+                    <p class="secondary-note">{{ exam.description or "No description added yet." }}</p>
+                    <p class="secondary-note">{{ exam.schedule_text }}</p>
+                    <p class="secondary-note">{{ exam.duration }} mins | {{ exam.question_count }} questions | {{ exam.attempt_count }} attempts</p>
+                    <div class="inline-actions">
+                        <a class="secondary-action" href="/edit-exam/{{ exam.id }}">Edit Exam</a>
+                        <a class="secondary-action" href="/manage-questions/{{ exam.id }}">Manage Questions</a>
+                        <form action="/delete-exam/{{ exam.id }}" method="POST" onsubmit="return confirm('Delete this exam and all related questions/results?');">
+                            <button type="submit" class="secondary-action">Delete</button>
+                        </form>
+                    </div>
+                </article>
+                {% else %}
+                <article class="info-card">
+                    <h3>No exams found</h3>
+                    <p class="secondary-note">Create an exam first to start building your question sets.</p>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+
+</html>

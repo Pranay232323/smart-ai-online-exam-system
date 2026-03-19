@@ -1,13 +1,10 @@
 body {
     font-family: Arial;
-    text-align: center;
-    margin-top: 50px;
     color: var(--text);
 }
 
 table {
-    width: 80%;
-    margin: auto;
+    width: 100%;
     border-collapse: collapse;
 }
 
