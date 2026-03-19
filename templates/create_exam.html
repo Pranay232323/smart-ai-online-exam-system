@@ -1,27 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-<title>Create Exam</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Exam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
 </head>
 
 <body>
+    <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
 
-<h2>Create Exam</h2>
+    <main class="form-card">
+        <h1 class="page-title">Create Exam</h1>
+        <p class="page-subtitle">Add a new exam with title, description, and duration.</p>
 
-<form action="/save-exam" method="POST">
+        <form action="/save-exam" method="POST" class="form-grid">
+            <div>
+                <label for="title">Exam Title</label>
+                <input id="title" type="text" name="title" required>
+            </div>
 
-Exam Title:<br>
-<input type="text" name="title" required><br><br>
+            <div>
+                <label for="description">Description</label>
+                <textarea id="description" name="description"></textarea>
+            </div>
 
-Description:<br>
-<textarea name="description"></textarea><br><br>
+            <div>
+                <label for="duration">Duration (minutes)</label>
+                <input id="duration" type="number" name="duration" min="1" required>
+            </div>
 
-Duration (minutes):<br>
-<input type="number" name="duration" required><br><br>
+            <div class="toolbar-row">
+                <button type="submit" class="primary-action">Create Exam</button>
+                <a class="secondary-action" href="/admin-dashboard">Back</a>
+            </div>
+        </form>
+    </main>
 
-<button type="submit">Create Exam</button>
-
-</form>
-
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </body>
+
 </html>

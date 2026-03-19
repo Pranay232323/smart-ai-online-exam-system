@@ -1,17 +1,18 @@
 body {
     font-family: Arial, sans-serif;
-    background: #f4f6f8;
     text-align: center;
     margin-top: 50px;
+    color: var(--text);
 }
 
 .box {
     width: 80%;
     margin: auto;
-    background: white;
+    background: var(--surface);
+    border: 1px solid var(--border);
     padding: 30px;
     border-radius: 12px;
-    box-shadow: 0 0 12px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow);
 }
 
 table {

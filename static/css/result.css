@@ -2,23 +2,26 @@ body {
     font-family: Arial;
     text-align: center;
     margin-top: 80px;
+    color: var(--text);
 }
 
 .result-box {
-    border: 1px solid #ccc;
+    background: var(--surface);
+    border: 1px solid var(--border);
     padding: 40px;
     width: 600px;
     margin: auto;
     border-radius: 10px;
+    box-shadow: var(--shadow);
 }
 
 .correct {
-    color: green;
+    color: var(--primary);
     font-weight: bold;
 }
 
 .wrong {
-    color: red;
+    color: var(--danger);
     font-weight: bold;
 }
 
@@ -34,7 +37,7 @@ body {
 
 button {
     padding: 8px 16px;
-    background: #4caf50;
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 5px;
@@ -42,5 +45,5 @@ button {
 }
 
 button:hover {
-    background: #45a049;
+    background: var(--primary-dark);
 }

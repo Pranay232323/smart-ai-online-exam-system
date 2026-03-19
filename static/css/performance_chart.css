@@ -1,15 +1,16 @@
 body {
     font-family: Arial;
-    background: #f4f4f4;
     text-align: center;
     margin-top: 50px;
+    color: var(--text);
 }
 
 .box {
-    background: white;
+    background: var(--surface);
+    border: 1px solid var(--border);
     width: 700px;
     margin: auto;
     padding: 30px;
     border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow);
 }

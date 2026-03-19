@@ -1,35 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
 </head>
 
 <body>
+    <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark Mode</button>
 
-    <h1>Admin Dashboard</h1>
+    <main class="page-frame">
+        <section class="page-card">
+            <h1 class="page-title">Admin Dashboard</h1>
+            <p class="page-subtitle">
+                Manage exams, monitor activity, and review analytics from one place.
+            </p>
 
-    <p>Welcome Admin</p>
+            <div class="action-grid">
+                <a class="action-link" href="/create-exam">Create New Exam</a>
+                <a class="action-link" href="/add-question">Add Questions</a>
+                <a class="action-link" href="/monitor-exams">Exam Monitoring</a>
+                <a class="action-link" href="/admin-analytics">View Analytics</a>
+                <a class="action-link" href="/performance-chart">Performance Graph</a>
+                <a class="action-link" href="/student_performance">Student Performance</a>
+            </div>
 
-    <a href="/create-exam">Create New Exam</a>
-    <a href="/add-question">Add Questions</a>
-    <a href="/monitor-exams">
-        <button>Exam Monitoring</button>
-    </a>
+            <div class="admin-link-row">
+                <a class="secondary-action" href="/logout">Logout</a>
+            </div>
+        </section>
+    </main>
 
-    <a href="/admin-analytics">
-        <button>View Analytics</button>
-    </a>
-    <a href="/performance-chart">
-        <button>Performance Graph</button>
-    </a>
-    <a href="/student_performance">
-        <button>Student Performance</button>
-    </a>
-    <br><br>
-
-    <a href="/logout">Logout</a>
-
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </body>
 
 </html>

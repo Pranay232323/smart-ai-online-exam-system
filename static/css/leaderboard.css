@@ -1,17 +1,18 @@
 body {
     font-family: Arial;
-    background: #f4f4f4;
     text-align: center;
     margin-top: 60px;
+    color: var(--text);
 }
 
 .board {
-    background: white;
+    background: var(--surface);
+    border: 1px solid var(--border);
     padding: 40px;
     width: 600px;
     margin: auto;
     border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow);
 }
 
 table {
