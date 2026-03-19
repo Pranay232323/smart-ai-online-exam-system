@@ -6,6 +6,9 @@
     --surface-muted: #f3f7fb;
     --card: #ffffff;
     --accent: #d7f3ef;
+    --hover-soft: #eef6ff;
+    --hover-strong: #dceeff;
+    --selection-soft: #d8f4ed;
     --text: #17324d;
     --muted: #5f7287;
     --border: #d6e1ec;
@@ -24,6 +27,9 @@
     --surface-muted: #17324d;
     --card: #102131;
     --accent: #153f44;
+    --hover-soft: #1b3247;
+    --hover-strong: #23435e;
+    --selection-soft: #17464b;
     --text: #eaf3fb;
     --muted: #9eb2c8;
     --border: #28445e;
