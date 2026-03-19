@@ -15,7 +15,18 @@
         <section class="page-card">
             <div class="top-nav">
                 <div>
-                    <h1 class="page-title">My Profile</h1>
+                    <div class="brand-lockup" data-reveal="1">
+                        <div class="brand-mark">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M16 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"></path>
+                                <path d="M7 27c1.7-4 5.1-6 9-6s7.3 2 9 6"></path>
+                            </svg>
+                        </div>
+                        <div class="brand-text">
+                            <span class="brand-kicker">Student Snapshot</span>
+                            <h1 class="brand-title">My Profile</h1>
+                        </div>
+                    </div>
                     <p class="page-subtitle">See your account details, performance summary, and weaker areas at a glance.</p>
                 </div>
                 <div class="top-nav-links">
@@ -24,7 +35,7 @@
             </div>
 
             <div class="card-grid">
-                <article class="info-card">
+                <article class="info-card" data-reveal="2">
                     <h3>{{ user.name }}</h3>
                     <p class="secondary-note">{{ user.email }}</p>
                     <p class="secondary-note">Role: {{ user.role|capitalize }}</p>
@@ -32,17 +43,19 @@
             </div>
 
             <div class="stats-grid">
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="1">
                     <span class="stat-label">Total Exams</span>
                     <span class="stat-value">{{ summary.total_exams or 0 }}</span>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="2">
                     <span class="stat-label">Average Score</span>
                     <span class="stat-value">{{ (summary.average_score or 0)|round(1) }}%</span>
+                    <div class="visual-meter"><span style="width: {{ (summary.average_score or 0)|round(0) }}%;"></span></div>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="3">
                     <span class="stat-label">Best Score</span>
                     <span class="stat-value">{{ (summary.best_score or 0)|round(1) }}%</span>
+                    <div class="visual-meter"><span style="width: {{ (summary.best_score or 0)|round(0) }}%;"></span></div>
                 </article>
             </div>
         </section>
@@ -51,12 +64,13 @@
             <h2 class="page-title" style="font-size: 26px;">Weak Areas</h2>
             <div class="card-grid">
                 {% for area in weak_areas %}
-                <article class="info-card">
+                <article class="info-card" data-reveal="2">
                     <h3>{{ area.title }}</h3>
                     <p class="secondary-note">{{ area.percentage|round(1) }}% average score</p>
+                    <div class="visual-meter"><span style="width: {{ area.percentage|round(0) }}%;"></span></div>
                 </article>
                 {% else %}
-                <article class="info-card">
+                <article class="empty-state-panel">
                     <h3>No weak areas yet</h3>
                     <p class="secondary-note">Complete a few exams and your performance trends will appear here.</p>
                 </article>
@@ -66,7 +80,7 @@
 
         <section class="page-card">
             <h2 class="page-title" style="font-size: 26px;">Recent Results</h2>
-            <div class="table-wrap">
+            <div class="table-wrap" data-reveal="3">
                 <table>
                     <thead>
                         <tr>

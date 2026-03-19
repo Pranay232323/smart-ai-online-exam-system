@@ -15,7 +15,18 @@
     <div class="page">
         <section class="hero">
             <div>
-                <h1>Student Dashboard</h1>
+                <div class="brand-lockup" data-reveal="1">
+                    <div class="brand-mark">
+                        <svg viewBox="0 0 32 32" aria-hidden="true">
+                            <path d="M16 6l10 5v10c0 3.8-2.6 7.3-10 10-7.4-2.7-10-6.2-10-10V11l10-5Z"></path>
+                            <path d="M12 16h8M12 20h5M12 12h8"></path>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <span class="brand-kicker">Learner Workspace</span>
+                        <h1 class="brand-title">Student Dashboard</h1>
+                    </div>
+                </div>
                 <p>
                     Welcome, {{ student_name }}. Track your progress, review your profile,
                     and start live exams from one place.
@@ -49,17 +60,19 @@
             </div>
 
             <div class="stats-grid">
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="1">
                     <span class="stat-label">Total Exams Taken</span>
                     <span class="stat-value">{{ summary.total_exams or 0 }}</span>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="2">
                     <span class="stat-label">Average Score</span>
                     <span class="stat-value">{{ (summary.average_score or 0)|round(1) }}%</span>
+                    <div class="visual-meter"><span style="width: {{ (summary.average_score or 0)|round(0) }}%;"></span></div>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="3">
                     <span class="stat-label">Best Score</span>
                     <span class="stat-value">{{ (summary.best_score or 0)|round(1) }}%</span>
+                    <div class="visual-meter"><span style="width: {{ (summary.best_score or 0)|round(0) }}%;"></span></div>
                 </article>
             </div>
         </section>
@@ -73,10 +86,34 @@
                 <div class="assist-note">Warnings limit during exam: 3</div>
             </div>
 
+            <div class="filter-toolbar">
+                <div class="filter-group">
+                    <input
+                        class="filter-input"
+                        type="search"
+                        placeholder="Find an exam..."
+                        data-filter-input
+                        data-filter-target=".exam-card"
+                    >
+                    <select
+                        class="filter-select"
+                        data-filter-select
+                        data-filter-target=".exam-card"
+                        data-filter-attribute="data-status"
+                    >
+                        <option value="all">All status</option>
+                        <option value="live">Live</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="closed">Closed</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="exam-list">
                 {% if exams %}
                 {% for exam in exams %}
-                <article class="exam-card">
+                <article class="exam-card" data-reveal="2" data-status="{{ exam.status_label|lower }}">
                     <div class="exam-meta">
                         <span class="chip">Exam ID: {{ exam.id }}</span>
                         <span class="chip">Duration: {{ exam.duration }} mins</span>
@@ -86,6 +123,7 @@
                     <h3>{{ exam.title }}</h3>
                     <p>{{ exam.description if exam.description else "No description has been added for this exam yet." }}</p>
                     <p class="secondary-note">{{ exam.schedule_text }}</p>
+                    <div class="visual-meter"><span style="width: {{ [exam.question_count * 10, 100]|min }}%;"></span></div>
 
                     {% if exam.can_start %}
                     <button
@@ -104,7 +142,7 @@
                 </article>
                 {% endfor %}
                 {% else %}
-                <div class="empty-state">
+                <div class="empty-state-panel">
                     No exams are available right now. Please check back later.
                 </div>
                 {% endif %}
@@ -187,6 +225,7 @@
     </section>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 

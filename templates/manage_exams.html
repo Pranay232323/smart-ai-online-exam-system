@@ -15,7 +15,19 @@
         <section class="page-card">
             <div class="top-nav">
                 <div>
-                    <h1 class="page-title">Manage Exams</h1>
+                    <div class="brand-lockup" data-reveal="1">
+                        <div class="brand-mark">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M7 10h18"></path>
+                                <path d="M7 16h18"></path>
+                                <path d="M7 22h12"></path>
+                            </svg>
+                        </div>
+                        <div class="brand-text">
+                            <span class="brand-kicker">Exam Studio</span>
+                            <h1 class="brand-title">Manage Exams</h1>
+                        </div>
+                    </div>
                     <p class="page-subtitle">Edit schedules, activate or deactivate exams, and manage question sets.</p>
                 </div>
                 <div class="top-nav-links">
@@ -34,14 +46,39 @@
             {% endif %}
             {% endwith %}
 
+            <div class="filter-toolbar">
+                <div class="filter-group">
+                    <input
+                        class="filter-input"
+                        type="search"
+                        placeholder="Search exams..."
+                        data-filter-input
+                        data-filter-target=".info-card[data-filterable-card]"
+                    >
+                    <select
+                        class="filter-select"
+                        data-filter-select
+                        data-filter-target=".info-card[data-filterable-card]"
+                        data-filter-attribute="data-status"
+                    >
+                        <option value="all">All status</option>
+                        <option value="live">Live</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="closed">Closed</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="card-grid">
                 {% for exam in exams %}
-                <article class="info-card">
+                <article class="info-card" data-filterable-card data-status="{{ exam.status_label|lower }}" data-reveal="2">
                     <div class="status-chip {{ exam.status_label|lower }}">{{ exam.status_label }}</div>
                     <h3>{{ exam.title }}</h3>
                     <p class="secondary-note">{{ exam.description or "No description added yet." }}</p>
                     <p class="secondary-note">{{ exam.schedule_text }}</p>
                     <p class="secondary-note">{{ exam.duration }} mins | {{ exam.question_count }} questions | {{ exam.attempt_count }} attempts</p>
+                    <div class="visual-meter"><span style="width: {{ [exam.attempt_count * 8, 100]|min }}%;"></span></div>
                     <div class="inline-actions">
                         <a class="secondary-action" href="/edit-exam/{{ exam.id }}">Edit Exam</a>
                         <a class="secondary-action" href="/manage-questions/{{ exam.id }}">Manage Questions</a>
@@ -51,7 +88,7 @@
                     </div>
                 </article>
                 {% else %}
-                <article class="info-card">
+                <article class="empty-state-panel">
                     <h3>No exams found</h3>
                     <p class="secondary-note">Create an exam first to start building your question sets.</p>
                 </article>
@@ -61,6 +98,7 @@
     </main>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
 </body>
 
 </html>

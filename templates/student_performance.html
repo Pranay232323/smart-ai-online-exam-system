@@ -16,7 +16,20 @@
         <section class="page-card">
             <div class="top-nav">
                 <div>
-                    <h1 class="page-title">Student Performance Analytics</h1>
+                    <div class="brand-lockup" data-reveal="1">
+                        <div class="brand-mark">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M7 24h18"></path>
+                                <path d="M10 24v-6"></path>
+                                <path d="M16 24V10"></path>
+                                <path d="M22 24v-9"></path>
+                            </svg>
+                        </div>
+                        <div class="brand-text">
+                            <span class="brand-kicker">Student Insights</span>
+                            <h1 class="brand-title">Student Performance Analytics</h1>
+                        </div>
+                    </div>
                     <p class="page-subtitle">Detailed exam-by-exam performance for each student.</p>
                 </div>
                 <div class="top-nav-links">
@@ -25,7 +38,19 @@
                 </div>
             </div>
 
-            <div class="table-wrap">
+            <div class="filter-toolbar">
+                <div class="filter-group">
+                    <input
+                        class="filter-input"
+                        type="search"
+                        placeholder="Search student or exam..."
+                        data-filter-input
+                        data-filter-target="#performanceRows tr"
+                    >
+                </div>
+            </div>
+
+            <div class="table-wrap" data-reveal="2">
                 <table>
                     <thead>
                         <tr>
@@ -35,7 +60,7 @@
                             <th>Percentage</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="performanceRows">
                         {% for row in performance %}
                         <tr>
                             <td>{{ row[0] }}</td>
@@ -55,6 +80,7 @@
     </main>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
 </body>
 
 </html>

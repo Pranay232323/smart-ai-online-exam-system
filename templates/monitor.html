@@ -16,7 +16,18 @@
         <section class="page-card">
             <div class="top-nav">
                 <div>
-                    <h1 class="page-title">Exam Monitoring</h1>
+                    <div class="brand-lockup" data-reveal="1">
+                        <div class="brand-mark">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M16 6c7 0 11 10 11 10s-4 10-11 10S5 16 5 16s4-10 11-10Z"></path>
+                                <path d="M16 20a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+                            </svg>
+                        </div>
+                        <div class="brand-text">
+                            <span class="brand-kicker">Live Invigilation</span>
+                            <h1 class="brand-title">Exam Monitoring</h1>
+                        </div>
+                    </div>
                     <p class="page-subtitle">Track warning counts, latest activity, and suspicious events reported during exams.</p>
                 </div>
                 <div class="top-nav-links">
@@ -25,8 +36,19 @@
                 </div>
             </div>
 
-            <h2 class="page-title" style="font-size: 24px;">Current Activity</h2>
-            <div class="table-wrap">
+            <div class="filter-toolbar">
+                <h2 class="page-title" style="font-size: 24px; margin: 0;">Current Activity</h2>
+                <div class="filter-group">
+                    <input
+                        class="filter-input"
+                        type="search"
+                        placeholder="Search student or exam..."
+                        data-filter-input
+                        data-filter-target="#activityRows tr"
+                    >
+                </div>
+            </div>
+            <div class="table-wrap" data-reveal="2">
                 <table>
                     <thead>
                         <tr>
@@ -38,7 +60,7 @@
                             <th>Updated</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="activityRows">
                         {% for row in activity %}
                         <tr>
                             <td>{{ row.name }}</td>
@@ -60,7 +82,18 @@
 
         <section class="page-card">
             <h2 class="page-title" style="font-size: 24px;">Recent Event Logs</h2>
-            <div class="table-wrap">
+            <div class="filter-toolbar">
+                <div class="filter-group">
+                    <input
+                        class="filter-input"
+                        type="search"
+                        placeholder="Filter event logs..."
+                        data-filter-input
+                        data-filter-target="#eventRows tr"
+                    >
+                </div>
+            </div>
+            <div class="table-wrap" data-reveal="3">
                 <table>
                     <thead>
                         <tr>
@@ -72,7 +105,7 @@
                             <th>Time</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="eventRows">
                         {% for event in event_logs %}
                         <tr>
                             <td>{{ event.name }}</td>
@@ -94,6 +127,7 @@
     </main>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
 </body>
 
 </html>

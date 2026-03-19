@@ -15,7 +15,18 @@
         <section class="page-card">
             <div class="top-nav">
                 <div>
-                    <h1 class="page-title">Admin Dashboard</h1>
+                    <div class="brand-lockup" data-reveal="1">
+                        <div class="brand-mark">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M16 5l9 4v7c0 6-4.1 9.8-9 11-4.9-1.2-9-5-9-11V9l9-4Z"></path>
+                                <path d="M12.5 16l2.4 2.4 4.8-5.3"></path>
+                            </svg>
+                        </div>
+                        <div class="brand-text">
+                            <span class="brand-kicker">Smart AI Proctor</span>
+                            <h1 class="brand-title">Admin Command Center</h1>
+                        </div>
+                    </div>
                     <p class="page-subtitle">Manage exams, schedules, monitoring, analytics, exports, and student performance.</p>
                 </div>
                 <div class="top-nav-links">
@@ -36,21 +47,25 @@
             {% endwith %}
 
             <div class="stats-grid">
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="1">
                     <span class="stat-label">Total Exams</span>
                     <span class="stat-value">{{ stats.total_exams or 0 }}</span>
+                    <span class="stat-trend">Assessment Library</span>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="2">
                     <span class="stat-label">Students</span>
                     <span class="stat-value">{{ stats.total_students or 0 }}</span>
+                    <span class="stat-trend">Registered Learners</span>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="3">
                     <span class="stat-label">Attempts</span>
                     <span class="stat-value">{{ stats.total_attempts or 0 }}</span>
+                    <span class="stat-trend">Completed Sessions</span>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="4">
                     <span class="stat-label">Logged Events</span>
                     <span class="stat-value">{{ stats.total_events or 0 }}</span>
+                    <span class="stat-trend">Monitoring Signals</span>
                 </article>
             </div>
 
@@ -70,18 +85,19 @@
             <h2 class="page-title" style="font-size: 26px;">Recent Exam Snapshot</h2>
             <div class="card-grid">
                 {% for exam in recent_exams %}
-                <article class="info-card">
+                <article class="info-card" data-reveal="2" data-filterable-card data-status="{{ exam.status_label|lower }}">
                     <div class="status-chip {{ exam.status_label|lower }}">{{ exam.status_label }}</div>
                     <h3>{{ exam.title }}</h3>
                     <p class="secondary-note">{{ exam.question_count }} questions | {{ exam.duration }} minutes</p>
                     <p class="secondary-note">{{ exam.schedule_text }}</p>
+                    <div class="visual-meter"><span style="width: {{ [exam.question_count * 10, 100]|min }}%;"></span></div>
                     <div class="inline-actions">
                         <a class="secondary-action" href="/edit-exam/{{ exam.id }}">Edit</a>
                         <a class="secondary-action" href="/manage-questions/{{ exam.id }}">Questions</a>
                     </div>
                 </article>
                 {% else %}
-                <article class="info-card">
+                <article class="empty-state-panel">
                     <h3>No exams yet</h3>
                     <p class="secondary-note">Create your first exam to start building the platform.</p>
                 </article>
@@ -91,6 +107,7 @@
     </main>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
 </body>
 
 </html>

@@ -17,7 +17,19 @@
         <section class="page-card">
             <div class="top-nav">
                 <div>
-                    <h1 class="page-title">Student Performance Chart</h1>
+                    <div class="brand-lockup" data-reveal="1">
+                        <div class="brand-mark">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M5 24h22"></path>
+                                <path d="M9 20l5-6 4 3 5-7"></path>
+                                <path d="M23 10h-4"></path>
+                            </svg>
+                        </div>
+                        <div class="brand-text">
+                            <span class="brand-kicker">Performance View</span>
+                            <h1 class="brand-title">Student Performance Chart</h1>
+                        </div>
+                    </div>
                     <p class="page-subtitle">Average student percentage across completed exams.</p>
                 </div>
                 <div class="top-nav-links">
@@ -26,12 +38,24 @@
                 </div>
             </div>
 
-            <canvas id="myChart"></canvas>
+            <div class="stats-grid">
+                <article class="stat-card" data-reveal="1">
+                    <span class="stat-label">Students Tracked</span>
+                    <span class="stat-value">{{ names|length }}</span>
+                </article>
+                <article class="stat-card" data-reveal="2">
+                    <span class="stat-label">Chart Type</span>
+                    <span class="stat-value" style="font-size: 1.45rem;">Average %</span>
+                </article>
+            </div>
+
+            <canvas id="myChart" data-reveal="3"></canvas>
         </section>
     </main>
 
     <div id="chart-data" data-names='{{ names|tojson }}' data-scores='{{ scores|tojson }}'></div>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
     <script src="{{ url_for('static', filename='js/performance_chart.js') }}"></script>
 </body>
 

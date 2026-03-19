@@ -16,7 +16,20 @@
         <section class="page-card">
             <div class="top-nav">
                 <div>
-                    <h1 class="page-title">Admin Analytics Dashboard</h1>
+                    <div class="brand-lockup" data-reveal="1">
+                        <div class="brand-mark">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M6 24h20"></path>
+                                <path d="M10 21V13"></path>
+                                <path d="M16 21V8"></path>
+                                <path d="M22 21V15"></path>
+                            </svg>
+                        </div>
+                        <div class="brand-text">
+                            <span class="brand-kicker">Analytics Pulse</span>
+                            <h1 class="brand-title">Admin Analytics Dashboard</h1>
+                        </div>
+                    </div>
                     <p class="page-subtitle">View platform-wide performance trends and export a report when needed.</p>
                 </div>
                 <div class="top-nav-links">
@@ -26,25 +39,25 @@
             </div>
 
             <div class="stats-grid">
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="1">
                     <span class="stat-label">Total Students</span>
                     <span class="stat-value">{{ total_students }}</span>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="2">
                     <span class="stat-label">Total Exams</span>
                     <span class="stat-value">{{ total_exams }}</span>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="3">
                     <span class="stat-label">Total Attempts</span>
                     <span class="stat-value">{{ total_attempts }}</span>
                 </article>
-                <article class="stat-card">
+                <article class="stat-card" data-reveal="4">
                     <span class="stat-label">Average Score</span>
                     <span class="stat-value">{{ avg_score|round(2) if avg_score else 0 }}%</span>
                 </article>
             </div>
 
-            <article class="info-card" style="margin-bottom: 24px;">
+            <article class="info-card" style="margin-bottom: 24px;" data-reveal="2">
                 <h3>Top Performer</h3>
                 <p class="secondary-note">
                     {% if top_student %}
@@ -55,7 +68,19 @@
                 </p>
             </article>
 
-            <div class="table-wrap">
+            <div class="filter-toolbar">
+                <div class="filter-group">
+                    <input
+                        class="filter-input"
+                        type="search"
+                        placeholder="Filter students..."
+                        data-filter-input
+                        data-filter-target="#analyticsRows tr"
+                    >
+                </div>
+            </div>
+
+            <div class="table-wrap" data-reveal="3">
                 <table>
                     <thead>
                         <tr>
@@ -64,7 +89,7 @@
                             <th>Average Percentage</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="analyticsRows">
                         {% for row in student_breakdown %}
                         <tr>
                             <td>{{ row[0] }}</td>
@@ -79,6 +104,7 @@
     </main>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
 </body>
 
 </html>
