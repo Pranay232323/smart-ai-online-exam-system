@@ -2,6 +2,8 @@ const examApp = document.getElementById("examApp");
 const examId = examApp.dataset.examId;
 const warningLimit = Number(examApp.dataset.warningLimit || 3);
 const questions = JSON.parse(document.getElementById("questions-data").textContent);
+const storageKey = "exam_state_" + examId;
+const fullscreenGate = document.getElementById("fullscreenGate");
 
 let currentQuestion = 0;
 let answers = {};
@@ -11,6 +13,56 @@ let warnings = 0;
 let pendingViolationMessage = "";
 let violationDetected = false;
 let time = Number(examApp.dataset.examDuration) * 60;
+
+function saveExamState() {
+    if (examSubmitting) {
+        return;
+    }
+
+    sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({
+            currentQuestion,
+            answers,
+            visited,
+            warnings,
+            time,
+        })
+    );
+}
+
+function clearExamState() {
+    sessionStorage.removeItem(storageKey);
+}
+
+function restoreExamState() {
+    const rawState = sessionStorage.getItem(storageKey);
+    if (!rawState) {
+        return false;
+    }
+
+    try {
+        const state = JSON.parse(rawState);
+        currentQuestion = typeof state.currentQuestion === "number" ? state.currentQuestion : 0;
+        answers = state.answers || {};
+        visited = state.visited || {};
+        warnings = typeof state.warnings === "number" ? state.warnings : 0;
+        time = typeof state.time === "number" ? state.time : time;
+        return true;
+    } catch (error) {
+        sessionStorage.removeItem(storageKey);
+        return false;
+    }
+}
+
+function isReloadNavigation() {
+    const navigationEntries = performance.getEntriesByType("navigation");
+    if (navigationEntries.length > 0) {
+        return navigationEntries[0].type === "reload";
+    }
+
+    return performance.navigation && performance.navigation.type === 1;
+}
 
 function updateWarningCounter() {
     const warningCount = document.getElementById("warningCount");
@@ -65,6 +117,7 @@ function loadQuestion() {
 
     updatePalette();
     updateCounter();
+    saveExamState();
 }
 
 function saveAnswer(option) {
@@ -72,6 +125,7 @@ function saveAnswer(option) {
     answers[qid] = option;
     updateCounter();
     updatePalette();
+    saveExamState();
 }
 
 function updateCounter() {
@@ -166,6 +220,7 @@ function submitExam(status = "Submitted") {
     }
 
     examSubmitting = true;
+    clearExamState();
     document.getElementById("finalStatus").value = status;
 
     const form = document.getElementById("examForm");
@@ -183,6 +238,7 @@ function startTimer() {
             minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
 
         time -= 1;
+        saveExamState();
         if (time <= 0) {
             submitExam("Auto Submitted");
         }
@@ -208,6 +264,7 @@ function registerViolation(eventType, message) {
         warnings = data && typeof data.warning_count === "number" ? data.warning_count : warnings + 1;
         updateWarningCounter();
         showWarning(message + " (" + warnings + "/" + warningLimit + ")");
+        saveExamState();
 
         if (data && data.should_auto_submit) {
             pendingViolationMessage =
@@ -221,8 +278,33 @@ function registerViolation(eventType, message) {
 
 function requestFullscreenMode() {
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => null);
+        return document.documentElement.requestFullscreen().catch(() => null);
     }
+    return Promise.resolve();
+}
+
+function enableFullscreenGuard() {
+    const tryFullscreen = () => {
+        if (!document.fullscreenElement && !examSubmitting) {
+            requestFullscreenMode();
+        }
+    };
+
+    ["click", "keydown", "touchstart"].forEach((eventName) => {
+        document.addEventListener(eventName, tryFullscreen, { passive: true });
+    });
+}
+
+function hideFullscreenGate() {
+    if (fullscreenGate) {
+        fullscreenGate.classList.add("hidden");
+    }
+}
+
+function enterExamMode() {
+    requestFullscreenMode().finally(() => {
+        hideFullscreenGate();
+    });
 }
 
 document.addEventListener("visibilitychange", () => {
@@ -236,7 +318,18 @@ document.addEventListener("visibilitychange", () => {
 
 document.addEventListener("fullscreenchange", () => {
     if (!document.fullscreenElement && !examSubmitting) {
-        registerViolation("Fullscreen Exit", "You exited fullscreen during the exam.");
+        notifyExamEvent(
+            "Fullscreen Exit",
+            "Fullscreen was exited during the exam. The exam will be auto-submitted.",
+            true
+        ).then((data) => {
+            warnings =
+                data && typeof data.warning_count === "number" ? data.warning_count : warnings + 1;
+            updateWarningCounter();
+            pendingViolationMessage =
+                "You exited fullscreen during the exam. This violates the exam rules, so your exam will now be submitted.";
+            showViolationPopup(pendingViolationMessage);
+        });
     }
 });
 
@@ -276,15 +369,28 @@ document.addEventListener("keydown", (event) => {
 
 window.addEventListener("beforeunload", (event) => {
     if (!examSubmitting) {
+        saveExamState();
         event.preventDefault();
         event.returnValue = "You are leaving an active exam.";
     }
 });
 
+restoreExamState();
 buildPalette();
 loadQuestion();
 updateWarningCounter();
 startTimer();
+enableFullscreenGuard();
+
+if (isReloadNavigation() && !examSubmitting) {
+    pendingViolationMessage =
+        "The exam page was reloaded. Reloading is not allowed during the exam, so your exam will now be submitted.";
+    notifyExamEvent("Page Reload", pendingViolationMessage, true).then((data) => {
+        warnings = data && typeof data.warning_count === "number" ? data.warning_count : warnings + 1;
+        updateWarningCounter();
+        showViolationPopup(pendingViolationMessage);
+    });
+}
 
 window.prevQuestion = prevQuestion;
 window.nextQuestion = nextQuestion;
@@ -295,3 +401,4 @@ window.closePopup = closePopup;
 window.submitExam = submitExam;
 window.confirmViolationSubmit = confirmViolationSubmit;
 window.requestFullscreenMode = requestFullscreenMode;
+window.enterExamMode = enterExamMode;
