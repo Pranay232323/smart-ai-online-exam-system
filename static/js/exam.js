@@ -269,10 +269,29 @@ function registerViolation(eventType, message) {
         if (data && data.should_auto_submit) {
             pendingViolationMessage =
                 "You crossed the allowed warning limit. Your exam will now be submitted.";
-        } else {
-            pendingViolationMessage = message + " This warning has been logged.";
+            submitExam("Auto Submitted");
+            return;
         }
+
+        if (warnings >= warningLimit) {
+            pendingViolationMessage =
+                "You crossed the allowed warning limit. Your exam will now be submitted.";
+            submitExam("Auto Submitted");
+            return;
+        }
+
+        pendingViolationMessage = message + " This warning has been logged.";
         violationDetected = true;
+    });
+}
+
+function submitAfterViolation(eventType, message, incrementWarning = true) {
+    if (examSubmitting) {
+        return;
+    }
+
+    notifyExamEvent(eventType, message, incrementWarning).finally(() => {
+        submitExam("Auto Submitted");
     });
 }
 
@@ -318,18 +337,11 @@ document.addEventListener("visibilitychange", () => {
 
 document.addEventListener("fullscreenchange", () => {
     if (!document.fullscreenElement && !examSubmitting) {
-        notifyExamEvent(
+        submitAfterViolation(
             "Fullscreen Exit",
             "Fullscreen was exited during the exam. The exam will be auto-submitted.",
             true
-        ).then((data) => {
-            warnings =
-                data && typeof data.warning_count === "number" ? data.warning_count : warnings + 1;
-            updateWarningCounter();
-            pendingViolationMessage =
-                "You exited fullscreen during the exam. This violates the exam rules, so your exam will now be submitted.";
-            showViolationPopup(pendingViolationMessage);
-        });
+        );
     }
 });
 
@@ -385,11 +397,7 @@ enableFullscreenGuard();
 if (isReloadNavigation() && !examSubmitting) {
     pendingViolationMessage =
         "The exam page was reloaded. Reloading is not allowed during the exam, so your exam will now be submitted.";
-    notifyExamEvent("Page Reload", pendingViolationMessage, true).then((data) => {
-        warnings = data && typeof data.warning_count === "number" ? data.warning_count : warnings + 1;
-        updateWarningCounter();
-        showViolationPopup(pendingViolationMessage);
-    });
+    submitAfterViolation("Page Reload", pendingViolationMessage, true);
 }
 
 window.prevQuestion = prevQuestion;
